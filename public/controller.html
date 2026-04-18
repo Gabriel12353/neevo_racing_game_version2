@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+  />
+  <title>neevo controller</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="controller-page">
+  <div class="controller-wrapper">
+    <div class="controller-brand-top">
+      <img src="NeevoLogo.png" alt="neevo" class="controller-logo-image" />
+    </div>
+
+    <h1 id="controllerTitle">reaction controller</h1>
+    <p id="controllerStatus">wait for lights out</p>
+
+    <div class="join-buttons" id="joinButtons">
+      <button type="button" onclick="joinPlayer('player1')">join player 1</button>
+      <button type="button" onclick="joinPlayer('player2')">join player 2</button>
+    </div>
+
+    <div class="weight-picker" id="weightPicker">
+      <div class="weight-title">select weight</div>
+
+      <div class="slider-value" id="sliderValue">50g</div>
+
+      <input
+        type="range"
+        id="weightSlider"
+        min="50"
+        max="80"
+        step="1"
+        value="50"
+      />
+
+      <div class="slider-labels">
+        <span>50g</span>
+        <span>80g</span>
+      </div>
+
+      <div class="selected-weight" id="selectedWeight">selected: 50g</div>
+    </div>
+
+    <button type="button" id="tapButton" disabled>tap</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="controller.js"></script>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>neevo reaction race</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="host-page">
+  <div class="host-wrapper">
+    <div class="top-bar">
+      <div class="brand-top">
+        <img src="NeevoLogo.png" alt="neevo" class="neevo-logo-image" />
+      </div>
+
+      <h1>reaction race</h1>
+      <p class="subtitle">choose your weight. wait for lights out. fastest launch wins.</p>
+    </div>
+
+    <div class="main-layout track-layout">
+      <div class="qr-panel">
+        <h2>player 1</h2>
+        <canvas id="qrPlayer1"></canvas>
+        <p>scan to join</p>
+
+        <div class="side-info-card">
+          <div class="side-label">weight</div>
+          <div class="side-value" id="player1Weight">waiting</div>
+        </div>
+
+        <div class="side-info-card">
+          <div class="side-label">reaction</div>
+          <div class="side-value" id="player1Result">waiting</div>
+        </div>
+
+        <div class="side-info-card">
+          <div class="side-label">finish time</div>
+          <div class="side-value" id="player1Score">waiting</div>
+        </div>
+      </div>
+
+      <div class="track-center">
+        <div class="lights-row">
+          <div class="start-light" id="light1"></div>
+          <div class="start-light" id="light2"></div>
+          <div class="start-light" id="light3"></div>
+          <div class="start-light" id="light4"></div>
+          <div class="start-light" id="light5"></div>
+        </div>
+
+        <div class="center-status" id="centerStatus">press start race</div>
+
+        <div class="tracks-wrapper">
+          <div class="track">
+            <div class="lane-label">player 1</div>
+            <div class="finish-line"></div>
+            <div class="car car-image-wrap" id="car1">
+              <img src="assets/car1.png" alt="player 1 car" class="car-image" />
+            </div>
+          </div>
+
+          <div class="track">
+            <div class="lane-label">player 2</div>
+            <div class="finish-line"></div>
+            <div class="car car-image-wrap" id="car2">
+              <img src="assets/car2.png" alt="player 2 car" class="car-image" />
+            </div>
+          </div>
+        </div>
+
+        <div class="winner-banner" id="winnerBanner">winner: waiting</div>
+      </div>
+
+      <div class="qr-panel">
+        <h2>player 2</h2>
+        <canvas id="qrPlayer2"></canvas>
+        <p>scan to join</p>
+
+        <div class="side-info-card">
+          <div class="side-label">weight</div>
+          <div class="side-value" id="player2Weight">waiting</div>
+        </div>
+
+        <div class="side-info-card">
+          <div class="side-label">reaction</div>
+          <div class="side-value" id="player2Result">waiting</div>
+        </div>
+
+        <div class="side-info-card">
+          <div class="side-label">finish time</div>
+          <div class="side-value" id="player2Score">waiting</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <button id="startRaceBtn">start race</button>
+      <p>tap only when all lights go out</p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="host.js"></script>
+</body>
+</html>
