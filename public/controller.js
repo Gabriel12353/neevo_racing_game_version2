@@ -47,12 +47,9 @@ let currentName = "";
 let partsData = null;
 
 let bothPlayersReady = false;
+let raceArmed = false;
 let raceStarted = false;
 let raceFinished = false;
-let canTap = false;
-let alreadyTapped = false;
-let lightsOutTime = 0;
-let lastTapPressAt = 0;
 
 const currentIndexes = {
   front: 0,
@@ -65,6 +62,11 @@ const selectedIndexes = {
   body: null,
   rear: null
 };
+
+let canTap = false;
+let alreadyTapped = false;
+let lightsOutTime = 0;
+let lastTapPressAt = 0;
 
 function isPlayerTwo() {
   return currentPlayer === "player2";
@@ -218,7 +220,7 @@ function updateTapAvailability() {
 }
 
 function updateEditBuildAvailability() {
-  const lockBuild = raceStarted || raceFinished;
+  const lockBuild = raceArmed || raceStarted || raceFinished;
   editBuildBtn.disabled = lockBuild;
 }
 
@@ -238,6 +240,7 @@ function showExpiredMessage() {
   currentPlayer = null;
   currentName = "";
   bothPlayersReady = false;
+  raceArmed = false;
   raceStarted = false;
   raceFinished = false;
   controllerTitle.textContent = "car builder";
@@ -355,7 +358,7 @@ function updateSummary() {
 }
 
 function showBuilderPanel() {
-  if (raceStarted || raceFinished) return;
+  if (raceArmed || raceStarted || raceFinished) return;
   builderPanel.style.display = "block";
   readyPanel.style.display = "none";
 }
@@ -367,7 +370,7 @@ function showReadyPanel() {
 
 function cyclePart(type, direction) {
   if (!partsData) return;
-  if (raceStarted || raceFinished) return;
+  if (raceArmed || raceStarted || raceFinished) return;
 
   const maxIndex = partsData[type].length - 1;
   currentIndexes[type] += direction;
@@ -379,7 +382,7 @@ function cyclePart(type, direction) {
 }
 
 function selectPart(type) {
-  if (raceStarted || raceFinished) return;
+  if (raceArmed || raceStarted || raceFinished) return;
 
   selectedIndexes[type] = currentIndexes[type];
   updateSelectedUi();
@@ -400,10 +403,7 @@ function handleTapPress(event) {
   if (!currentPlayer || !sessionId) return;
   if (!getSelectedBuild()) return;
   if (!bothPlayersReady) return;
-
-  if (!raceStarted) {
-    return;
-  }
+  if (!raceArmed) return;
 
   if (!canTap) {
     if (alreadyTapped) return;
@@ -459,7 +459,7 @@ bodySelectBtn.addEventListener("click", () => selectPart("body"));
 rearSelectBtn.addEventListener("click", () => selectPart("rear"));
 
 confirmBuildBtn.addEventListener("click", () => {
-  if (raceStarted || raceFinished) return;
+  if (raceArmed || raceStarted || raceFinished) return;
 
   if (!currentPlayer || !sessionId) {
     showExpiredMessage();
@@ -490,7 +490,7 @@ confirmBuildBtn.addEventListener("click", () => {
 });
 
 editBuildBtn.addEventListener("click", () => {
-  if (raceStarted || raceFinished) return;
+  if (raceArmed || raceStarted || raceFinished) return;
 
   controllerStatus.textContent = "choose your components";
   showBuilderPanel();
@@ -570,10 +570,10 @@ socket.on("state-sync", (state) => {
     renderBuilder();
     showReadyPanel();
 
-    if (!raceStarted && !raceFinished) {
+    if (!raceArmed && !raceStarted && !raceFinished) {
       controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting for both players";
     }
-  } else if (!raceStarted && !raceFinished) {
+  } else if (!raceArmed && !raceStarted && !raceFinished) {
     controllerStatus.textContent = "choose your components";
   }
 
@@ -592,22 +592,33 @@ socket.on("session-cleared", () => {
 });
 
 socket.on("reset-race", () => {
-  bothPlayersReady = false;
+  raceArmed = false;
   raceStarted = false;
   raceFinished = false;
   resetTapState();
-  controllerStatus.textContent = "waiting for both players";
+  controllerStatus.textContent = "waiting for green lights";
   phoneWinnerOverlay.style.display = "none";
   updateTapAvailability();
   updateEditBuildAvailability();
 });
 
+socket.on("race-started", () => {
+  raceArmed = true;
+  raceStarted = false;
+  raceFinished = false;
+  controllerStatus.textContent = "wait for lights out";
+  updateTapAvailability();
+  updateEditBuildAvailability();
+});
+
 socket.on("light-step", (step) => {
-  raceStarted = true;
+  raceArmed = true;
+  raceStarted = false;
   raceFinished = false;
   canTap = false;
   alreadyTapped = false;
-  controllerStatus.textContent = `lights ${step}/5`;
+  tapButton.disabled = true;
+  controllerStatus.textContent = `green lights ${step}/5`;
   updateTapAvailability();
   updateEditBuildAvailability();
 });
@@ -618,6 +629,7 @@ socket.on("lights-out", () => {
     return;
   }
 
+  raceArmed = true;
   raceStarted = true;
   raceFinished = false;
   lightsOutTime = performance.now();
