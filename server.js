@@ -11,9 +11,17 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "host.html"));
+});
+
 app.get("/api/parts", (req, res) => {
   res.json(CAR_PARTS);
 });
+
+function createSessionId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 function createPlayerState() {
   return {
@@ -32,7 +40,8 @@ let players = {
 
 let raceStarted = false;
 let raceFinished = false;
-let currentSessionId = Date.now().toString();
+let raceArmed = false;
+let currentSessionId = createSessionId();
 
 function getPublicState() {
   return {
@@ -51,9 +60,14 @@ function getPublicState() {
   };
 }
 
+function emitStateSync() {
+  io.emit("state-sync", getPublicState());
+}
+
 function resetRaceOnly() {
   raceStarted = false;
   raceFinished = false;
+  raceArmed = false;
   players.player1.result = null;
   players.player2.result = null;
 }
@@ -65,7 +79,8 @@ function fullClearGame() {
   };
   raceStarted = false;
   raceFinished = false;
-  currentSessionId = Date.now().toString();
+  raceArmed = false;
+  currentSessionId = createSessionId();
 }
 
 function buildPhysicsParams(build) {
@@ -165,6 +180,7 @@ function maybeFinishRace() {
 
   raceFinished = true;
   raceStarted = false;
+  raceArmed = false;
 
   const summary = {
     player1: buildScoredResult("player1"),
@@ -188,34 +204,45 @@ function maybeFinishRace() {
   });
 }
 
+function isValidSession(sessionId) {
+  return typeof sessionId === "string" && sessionId === currentSessionId;
+}
+
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  console.log("A user connected", socket.id, "| session:", currentSessionId);
   socket.emit("state-sync", getPublicState());
 
   socket.on("join", (payload) => {
-    const role = typeof payload === "string" ? payload : payload?.role;
-    const name = typeof payload === "string" ? "" : payload?.name || "";
-    const sessionId = typeof payload === "string" ? currentSessionId : payload?.sessionId;
+    const role = payload?.role;
+    const name = payload?.name || "";
+    const sessionId = payload?.sessionId;
 
-    if (sessionId !== currentSessionId) {
+    console.log("join attempt", {
+      role,
+      name,
+      incomingSession: sessionId,
+      currentSession: currentSessionId
+    });
+
+    if (!players[role]) return;
+
+    if (!isValidSession(sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
       return;
     }
-
-    if (!players[role]) return;
 
     players[role].name = String(name).trim().slice(0, 20);
     players[role].socketId = socket.id;
 
     console.log(`User joined as ${role} with name ${players[role].name}`);
-    io.emit("state-sync", getPublicState());
+    emitStateSync();
   });
 
   socket.on("save-build", (data) => {
-    if (!data || !data.player || !data.selection || !data.sessionId) return;
+    if (!data || !data.player || !data.selection) return;
     if (!players[data.player]) return;
 
-    if (data.sessionId !== currentSessionId) {
+    if (!isValidSession(data.sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
       return;
     }
@@ -226,18 +253,19 @@ io.on("connection", (socket) => {
     players[data.player].ready = true;
     players[data.player].result = null;
 
-    io.emit("state-sync", getPublicState());
+    emitStateSync();
 
     console.log(
-      `${data.player} build saved | mass ${build.totalMass}g | drag ${build.totalCd}`
+      `${data.player} build saved | mass ${build.totalMass}g | Cd ${build.totalCd}`
     );
   });
 
   socket.on("edit-build", (data) => {
-    if (!data || !data.player || !data.sessionId) return;
+    if (!data || !data.player) return;
     if (!players[data.player]) return;
+    if (raceArmed || raceStarted || raceFinished) return;
 
-    if (data.sessionId !== currentSessionId) {
+    if (!isValidSession(data.sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
       return;
     }
@@ -246,14 +274,14 @@ io.on("connection", (socket) => {
     players[data.player].build = null;
     players[data.player].result = null;
 
-    io.emit("state-sync", getPublicState());
+    emitStateSync();
   });
 
   socket.on("clear-game", () => {
     fullClearGame();
     io.emit("session-cleared", { sessionId: currentSessionId });
-    io.emit("state-sync", getPublicState());
-    console.log("game cleared");
+    emitStateSync();
+    console.log("game cleared | new session:", currentSessionId);
   });
 
   socket.on("start-race", () => {
@@ -263,31 +291,33 @@ io.on("connection", (socket) => {
     }
 
     resetRaceOnly();
+    raceArmed = true;
     io.emit("reset-race");
 
     const lightStep = 1000;
-const randomDelay = 200 + Math.floor(Math.random() * 2801);
+    const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
-setTimeout(() => io.emit("light-step", 1), lightStep * 1);
-setTimeout(() => io.emit("light-step", 2), lightStep * 2);
-setTimeout(() => io.emit("light-step", 3), lightStep * 3);
-setTimeout(() => io.emit("light-step", 4), lightStep * 4);
-setTimeout(() => io.emit("light-step", 5), lightStep * 5);
+    setTimeout(() => io.emit("light-step", 1), lightStep * 1);
+    setTimeout(() => io.emit("light-step", 2), lightStep * 2);
+    setTimeout(() => io.emit("light-step", 3), lightStep * 3);
+    setTimeout(() => io.emit("light-step", 4), lightStep * 4);
+    setTimeout(() => io.emit("light-step", 5), lightStep * 5);
 
-setTimeout(() => {
-  io.emit("lights-out");
-  raceStarted = true;
-  io.emit("race-started");
-  console.log("LIGHTS OUT");
-}, lightStep * 5 + randomDelay);
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      raceStarted = true;
+      io.emit("lights-out");
+      io.emit("race-started");
+      console.log("LIGHTS OUT");
+    }, lightStep * 5 + randomDelay);
   });
 
   socket.on("reaction-result", (data) => {
     if (raceFinished) return;
-    if (!data || !data.player || !data.type || !data.sessionId) return;
+    if (!data || !data.player || !data.type) return;
     if (!players[data.player]) return;
 
-    if (data.sessionId !== currentSessionId) {
+    if (!isValidSession(data.sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
       return;
     }
@@ -296,6 +326,8 @@ setTimeout(() => {
     if (players[data.player].result !== null) return;
 
     if (data.type === "false-start") {
+      if (!raceArmed || raceStarted) return;
+
       players[data.player].result = {
         type: "false-start",
         reactionTime: null
@@ -320,7 +352,7 @@ setTimeout(() => {
   });
 
   socket.on("disconnect", () => {
-    console.log("A user disconnected");
+    console.log("A user disconnected", socket.id);
   });
 });
 
