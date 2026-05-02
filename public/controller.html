@@ -1,53 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>neevo controller</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="controller-page">
   <div class="controller-wrapper">
     <div class="controller-brand-top">
-      <img src="NeevoLogo.png" alt="neevo" class="controller-logo-image" />
+      <img src="NeevoLogo.png" alt="Neevo" class="controller-logo-image" />
     </div>
 
-    <h1 id="controllerTitle">reaction controller</h1>
-    <p id="controllerStatus">wait for lights out</p>
+    <h1 id="controllerTitle">car builder</h1>
+    <p id="controllerStatus">scan the qr to join</p>
 
-    <div class="join-buttons" id="joinButtons">
-      <button type="button" onclick="joinPlayer('player1')">join player 1</button>
-      <button type="button" onclick="joinPlayer('player2')">join player 2</button>
-    </div>
-
-    <div class="weight-picker" id="weightPicker">
-      <div class="weight-title">select weight</div>
-
-      <div class="slider-value" id="sliderValue">50g</div>
-
+    <div id="nameEntryPanel" class="name-entry-panel">
+      <div class="ready-title">enter your name</div>
       <input
-        type="range"
-        id="weightSlider"
-        min="50"
-        max="80"
-        step="1"
-        value="50"
+        id="playerNameInput"
+        class="player-name-input"
+        type="text"
+        placeholder="your name"
+        maxlength="18"
+        autocomplete="off"
       />
+      <button id="joinWithNameBtn" class="normal-action-btn">confirm</button>
+    </div>
 
-      <div class="slider-labels">
-        <span>50g</span>
-        <span>80g</span>
+    <div id="builderPanel" class="builder-panel" style="display:none;">
+      <div class="builder-section">
+        <div class="builder-label">front wing</div>
+        <div class="builder-row">
+          <button id="frontPrevBtn" class="arrow-btn">‹</button>
+
+          <div class="part-card">
+            <img id="frontImage" class="part-image" alt="front wing" />
+            <div id="frontName" class="part-name">front wing</div>
+            <div id="frontStats" class="part-stats">waiting</div>
+            <button id="frontSelectBtn" class="part-select-btn">select front</button>
+            <div id="frontSelectedText" class="part-selected-text">not selected</div>
+          </div>
+
+          <button id="frontNextBtn" class="arrow-btn">›</button>
+        </div>
       </div>
 
-      <div class="selected-weight" id="selectedWeight">selected: 50g</div>
+      <div class="builder-section">
+        <div class="builder-label">body</div>
+        <div class="builder-row">
+          <button id="bodyPrevBtn" class="arrow-btn">‹</button>
+
+          <div class="part-card">
+            <img id="bodyImage" class="part-image" alt="body" />
+            <div id="bodyName" class="part-name">body</div>
+            <div id="bodyStats" class="part-stats">waiting</div>
+            <button id="bodySelectBtn" class="part-select-btn">select body</button>
+            <div id="bodySelectedText" class="part-selected-text">not selected</div>
+          </div>
+
+          <button id="bodyNextBtn" class="arrow-btn">›</button>
+        </div>
+      </div>
+
+      <div class="builder-section">
+        <div class="builder-label">rear wing</div>
+        <div class="builder-row">
+          <button id="rearPrevBtn" class="arrow-btn">‹</button>
+
+          <div class="part-card">
+            <img id="rearImage" class="part-image" alt="rear wing" />
+            <div id="rearName" class="part-name">rear wing</div>
+            <div id="rearStats" class="part-stats">waiting</div>
+            <button id="rearSelectBtn" class="part-select-btn">select rear</button>
+            <div id="rearSelectedText" class="part-selected-text">not selected</div>
+          </div>
+
+          <button id="rearNextBtn" class="arrow-btn">›</button>
+        </div>
+      </div>
+
+      <div class="build-summary-card">
+        <div class="build-summary-title">build summary</div>
+        <div id="massSummary" class="build-summary-line">total mass: select all 3 parts</div>
+        <div id="cdSummary" class="build-summary-line">total Cd: select all 3 parts</div>
+      </div>
+
+      <button id="confirmBuildBtn" class="normal-action-btn">confirm full build</button>
     </div>
 
-    <button type="button" id="tapButton" disabled>tap</button>
+    <div id="readyPanel" class="ready-panel" style="display:none;">
+      <div class="ready-title">build selected</div>
+      <div id="readyMassText" class="build-summary-line">total mass: waiting</div>
+      <div id="readyCdText" class="build-summary-line">total Cd: waiting</div>
+      <button id="editBuildBtn" class="normal-action-btn">change build</button>
+    </div>
+
+    <button id="tapButton" class="ready" disabled>tap</button>
+
+    <div id="phoneWinnerOverlay" class="phone-winner-overlay" style="display:none;">
+      <div id="phoneWinnerText" class="phone-winner-text">winner</div>
+    </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="controller.js"></script>
 </body>

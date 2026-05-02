@@ -1,20 +1,36 @@
 const socket = io();
 
-const qrPlayer1 = document.getElementById("qrPlayer1");
-const qrPlayer2 = document.getElementById("qrPlayer2");
-const startRaceBtn = document.getElementById("startRaceBtn");
+const player1Ready = document.getElementById("player1Ready");
+const player2Ready = document.getElementById("player2Ready");
+const player1Name = document.getElementById("player1Name");
+const player2Name = document.getElementById("player2Name");
 
-const player1WeightEl = document.getElementById("player1Weight");
-const player2WeightEl = document.getElementById("player2Weight");
-const player1ResultEl = document.getElementById("player1Result");
-const player2ResultEl = document.getElementById("player2Result");
-const player1ScoreEl = document.getElementById("player1Score");
-const player2ScoreEl = document.getElementById("player2Score");
+const player1Qr = document.getElementById("player1Qr");
+const player2Qr = document.getElementById("player2Qr");
+
+const player1PreviewCar = document.getElementById("player1PreviewCar");
+const player2PreviewCar = document.getElementById("player2PreviewCar");
+const trackCar1 = document.getElementById("trackCar1");
+const trackCar2 = document.getElementById("trackCar2");
+const trackCarWrap1 = document.getElementById("trackCarWrap1");
+const trackCarWrap2 = document.getElementById("trackCarWrap2");
+
+const player1MiniBuild = document.getElementById("player1MiniBuild");
+const player2MiniBuild = document.getElementById("player2MiniBuild");
+
+const player1RaceTime = document.getElementById("player1RaceTime");
+const player2RaceTime = document.getElementById("player2RaceTime");
+const player1Reaction = document.getElementById("player1Reaction");
+const player2Reaction = document.getElementById("player2Reaction");
+const player1Finish = document.getElementById("player1Finish");
+const player2Finish = document.getElementById("player2Finish");
+
+const lane1Label = document.getElementById("lane1Label");
+const lane2Label = document.getElementById("lane2Label");
+const hostStatus = document.getElementById("hostStatus");
 const winnerBanner = document.getElementById("winnerBanner");
-const centerStatus = document.getElementById("centerStatus");
-
-const car1 = document.getElementById("car1");
-const car2 = document.getElementById("car2");
+const startRaceBtn = document.getElementById("startRaceBtn");
+const clearBtn = document.getElementById("clearBtn");
 
 const lights = [
   document.getElementById("light1"),
@@ -24,216 +40,428 @@ const lights = [
   document.getElementById("light5")
 ];
 
-const baseUrl = window.location.origin;
+let partsData = null;
+let currentSessionId = null;
 
-const player1Url = `${baseUrl}/controller.html?player=player1`;
-const player2Url = `${baseUrl}/controller.html?player=player2`;
+let currentState = {
+  player1: {},
+  player2: {},
+  bothReady: false,
+  sessionId: null
+};
 
-QRCode.toCanvas(qrPlayer1, player1Url, { width: 180 });
-QRCode.toCanvas(qrPlayer2, player2Url, { width: 180 });
+let raceResults = {
+  player1: { reaction: null, finish: null, race: null },
+  player2: { reaction: null, finish: null, race: null }
+};
 
-let car1Position = 25;
-let car2Position = 25;
+function buildJoinUrl(playerKey) {
+  if (!currentSessionId) return "#";
+  return `${window.location.origin}/controller.html?player=${playerKey}&session=${currentSessionId}`;
+}
 
-const winnerOverlay = document.createElement("div");
-winnerOverlay.id = "winnerOverlay";
-winnerOverlay.style.position = "fixed";
-winnerOverlay.style.inset = "0";
-winnerOverlay.style.display = "none";
-winnerOverlay.style.alignItems = "center";
-winnerOverlay.style.justifyContent = "center";
-winnerOverlay.style.background = "rgba(0, 0, 0, 0.72)";
-winnerOverlay.style.zIndex = "9999";
-winnerOverlay.style.pointerEvents = "none";
-winnerOverlay.innerHTML = `
-  <div style="
-    text-align:center;
-    color:white;
-    font-weight:900;
-    font-size:88px;
-    line-height:1.1;
-    text-shadow:0 0 24px rgba(0,0,0,0.45);
-  " id="winnerOverlayText">
-    WINNER
-  </div>
-`;
-document.body.appendChild(winnerOverlay);
-const winnerOverlayText = document.getElementById("winnerOverlayText");
+function renderQrCodes() {
+  if (!currentSessionId) return;
 
-function resetLights() {
-  lights.forEach((light) => {
-    light.classList.remove("active");
+  player1Qr.innerHTML = "";
+  player2Qr.innerHTML = "";
+
+  QRCode.toCanvas(buildJoinUrl("player1"), { width: 140 }, (err, canvas) => {
+    if (!err) player1Qr.appendChild(canvas);
+  });
+
+  QRCode.toCanvas(buildJoinUrl("player2"), { width: 140 }, (err, canvas) => {
+    if (!err) player2Qr.appendChild(canvas);
   });
 }
 
-function resetCars() {
-  car1Position = 25;
-  car2Position = 25;
-
-  car1.style.transition = "none";
-  car2.style.transition = "none";
-
-  car1.style.left = car1Position + "px";
-  car2.style.left = car2Position + "px";
-}
-
-function resetBoard() {
-  resetLights();
-  resetCars();
-
-  player1WeightEl.textContent = "Waiting";
-  player2WeightEl.textContent = "Waiting";
-  player1ResultEl.textContent = "Waiting";
-  player2ResultEl.textContent = "Waiting";
-  player1ScoreEl.textContent = "Waiting";
-  player2ScoreEl.textContent = "Waiting";
-  winnerBanner.textContent = "Winner: Waiting";
-  centerStatus.textContent = "Press Start Race";
-  winnerOverlay.style.display = "none";
-}
-
-function getFinishPosition(carEl) {
-  const track = carEl.parentElement;
-  const finishLine = track.querySelector(".finish-line");
-
-  const trackRect = track.getBoundingClientRect();
-  const finishRect = finishLine.getBoundingClientRect();
-  const carRect = carEl.getBoundingClientRect();
-
-  const finishXInsideTrack = finishRect.left - trackRect.left;
-  const carWidth = carRect.width;
-
-  return finishXInsideTrack - carWidth + 8;
-}
-
-function formatSeconds(value) {
-  return `${value.toFixed(3)} s`;
-}
-
-function showWinnerOverlay(winner) {
-  if (winner === "Player 1") {
-    winnerOverlayText.textContent = "PLAYER 1 WINS!";
-    winnerOverlay.style.display = "flex";
-  } else if (winner === "Player 2") {
-    winnerOverlayText.textContent = "PLAYER 2 WINS!";
-    winnerOverlay.style.display = "flex";
-  } else if (winner === "Tie") {
-    winnerOverlayText.textContent = "IT'S A TIE!";
-    winnerOverlay.style.display = "flex";
-  } else if (winner === "Both false started") {
-    winnerOverlayText.textContent = "BOTH FALSE STARTED";
-    winnerOverlay.style.display = "flex";
+async function loadParts() {
+  try {
+    const response = await fetch("/api/parts");
+    partsData = await response.json();
+    renderAll();
+  } catch (error) {
+    console.error("failed to load parts", error);
   }
 }
 
-function moveCarsToResult(summary) {
-  const finish1 = getFinishPosition(car1);
-  const finish2 = getFinishPosition(car2);
+function formatTime(value) {
+  if (value === null || value === undefined || Number.isNaN(value)) return "waiting";
+  return `${Number(value).toFixed(3)}s`;
+}
 
-  const p1 = summary.player1;
-  const p2 = summary.player2;
+function resetRaceMetrics() {
+  raceResults = {
+    player1: { reaction: null, finish: null, race: null },
+    player2: { reaction: null, finish: null, race: null }
+  };
 
-  if (p1 && p1.type === "false-start" && p2 && p2.type === "false-start") {
-    car1.style.transition = "left 0.7s ease-out";
-    car2.style.transition = "left 0.7s ease-out";
-    car1.style.left = "120px";
-    car2.style.left = "120px";
+  player1RaceTime.textContent = "waiting";
+  player2RaceTime.textContent = "waiting";
+  player1Reaction.textContent = "waiting";
+  player2Reaction.textContent = "waiting";
+  player1Finish.textContent = "waiting";
+  player2Finish.textContent = "waiting";
+}
+
+function clearLights() {
+  lights.forEach(light => {
+    light.classList.remove("active-light", "go-light");
+  });
+}
+
+function getPlayerName(playerKey) {
+  const player = currentState[playerKey] || {};
+  return player.name || (playerKey === "player1" ? "player 1" : "player 2");
+}
+
+function getPlayerBuild(playerKey) {
+  if (!partsData) return null;
+
+  const player = currentState[playerKey] || {};
+  const build = player.build;
+
+  if (!build) return null;
+  if (
+    build.frontIndex === undefined ||
+    build.bodyIndex === undefined ||
+    build.rearIndex === undefined
+  ) {
+    return null;
+  }
+
+  const front = partsData.front[build.frontIndex];
+  const body = partsData.body[build.bodyIndex];
+  const rear = partsData.rear[build.rearIndex];
+
+  if (!front || !body || !rear) return null;
+
+  const totalMass = front.mass + body.mass + rear.mass;
+  const totalCd = Number((front.cd + body.cd + rear.cd).toFixed(3));
+
+  return {
+    frontIndex: build.frontIndex,
+    bodyIndex: build.bodyIndex,
+    rearIndex: build.rearIndex,
+    totalMass,
+    totalCd
+  };
+}
+
+function chooseCarFamily(buildInfo) {
+  if (!buildInfo) return 1;
+
+  const f = Number(buildInfo.frontIndex) + 1;
+  const b = Number(buildInfo.bodyIndex) + 1;
+  const r = Number(buildInfo.rearIndex) + 1;
+
+  if (f === b) return f;
+  if (b === r) return b;
+  if (f === r) return f;
+
+  return b;
+}
+
+function getHostCarPath(playerKey, buildInfo) {
+  if (!buildInfo) return "";
+
+  const family = chooseCarFamily(buildInfo);
+  const color = playerKey === "player2" ? "white" : "orange";
+
+  return `/assets/cars/${color}/car${family}.png`;
+}
+
+function setCarImage(imgEl, playerKey, buildInfo) {
+  const src = getHostCarPath(playerKey, buildInfo);
+
+  if (!src) {
+    imgEl.removeAttribute("src");
+    imgEl.style.display = "none";
     return;
   }
 
-  if (p1 && p1.type === "false-start" && p2 && p2.type === "valid") {
-    car1.style.transition = "left 0.7s ease-out";
-    car2.style.transition = `left ${Math.max(0.8, p2.totalTime)}s linear`;
-    car1.style.left = "120px";
-    car2.style.left = `${finish2}px`;
-    return;
+  imgEl.src = src;
+  imgEl.style.display = "block";
+}
+
+function renderPlayerCard(playerKey) {
+  const player = currentState[playerKey] || {};
+  const buildInfo = getPlayerBuild(playerKey);
+
+  const readyEl = playerKey === "player1" ? player1Ready : player2Ready;
+  const nameEl = playerKey === "player1" ? player1Name : player2Name;
+  const previewEl = playerKey === "player1" ? player1PreviewCar : player2PreviewCar;
+  const miniBuildEl = playerKey === "player1" ? player1MiniBuild : player2MiniBuild;
+  const trackEl = playerKey === "player1" ? trackCar1 : trackCar2;
+
+  readyEl.textContent = player.ready ? "ready" : "not ready";
+  readyEl.classList.toggle("ready-on", !!player.ready);
+
+  nameEl.textContent = getPlayerName(playerKey);
+
+  if (buildInfo) {
+    miniBuildEl.textContent = `${buildInfo.totalMass}g / Cd ${buildInfo.totalCd.toFixed(3)}`;
+  } else {
+    miniBuildEl.textContent = "mass / Cd: waiting";
   }
 
-  if (p2 && p2.type === "false-start" && p1 && p1.type === "valid") {
-    car1.style.transition = `left ${Math.max(0.8, p1.totalTime)}s linear`;
-    car2.style.transition = "left 0.7s ease-out";
-    car1.style.left = `${finish1}px`;
-    car2.style.left = "120px";
-    return;
+  if (player.ready && buildInfo) {
+    setCarImage(previewEl, playerKey, buildInfo);
+    setCarImage(trackEl, playerKey, buildInfo);
+  } else {
+    previewEl.removeAttribute("src");
+    previewEl.style.display = "none";
+    trackEl.removeAttribute("src");
+    trackEl.style.display = "none";
+  }
+}
+
+function renderTrackCars() {
+  lane1Label.textContent = getPlayerName("player1");
+  lane2Label.textContent = getPlayerName("player2");
+  setTrackProgress("player1", 0);
+  setTrackProgress("player2", 0);
+}
+
+function setTrackProgress(playerKey, ratio) {
+  const safeRatio = Math.max(0, Math.min(1, ratio));
+  const wrap = playerKey === "player1" ? trackCarWrap1 : trackCarWrap2;
+  const lane = playerKey === "player1" ? document.getElementById("lane1") : document.getElementById("lane2");
+
+  if (!wrap || !lane) return;
+
+  const laneWidth = lane.clientWidth;
+  const carWidth = wrap.offsetWidth || 170;
+  const finishPadding = 95;
+  const x = safeRatio * (laneWidth - carWidth - finishPadding);
+
+  wrap.style.transform = `translateX(${x}px)`;
+}
+
+function animateRace(player1Total, player2Total) {
+  const start = performance.now();
+  const maxTime = Math.max(player1Total || 0, player2Total || 0, 0.1) * 1000;
+
+  function step(now) {
+    const elapsed = now - start;
+    const p1Ratio = Math.min(elapsed / (player1Total * 1000 || 1), 1);
+    const p2Ratio = Math.min(elapsed / (player2Total * 1000 || 1), 1);
+
+    setTrackProgress("player1", p1Ratio);
+    setTrackProgress("player2", p2Ratio);
+
+    if (elapsed < maxTime) {
+      requestAnimationFrame(step);
+    }
   }
 
-  if (p1 && p1.type === "valid" && p2 && p2.type === "valid") {
-    const t1 = Math.max(0.8, p1.totalTime);
-    const t2 = Math.max(0.8, p2.totalTime);
+  requestAnimationFrame(step);
+}
 
-    car1.style.transition = `left ${t1}s linear`;
-    car2.style.transition = `left ${t2}s linear`;
+function updateMetricDisplays() {
+  player1RaceTime.textContent = formatTime(raceResults.player1.race);
+  player2RaceTime.textContent = formatTime(raceResults.player2.race);
 
-    car1.style.left = `${finish1}px`;
-    car2.style.left = `${finish2}px`;
-    return;
+  player1Reaction.textContent = formatTime(raceResults.player1.reaction);
+  player2Reaction.textContent = formatTime(raceResults.player2.reaction);
+
+  player1Finish.textContent = formatTime(raceResults.player1.finish);
+  player2Finish.textContent = formatTime(raceResults.player2.finish);
+}
+
+function renderAll() {
+  renderPlayerCard("player1");
+  renderPlayerCard("player2");
+  renderTrackCars();
+
+  startRaceBtn.disabled = !currentState.bothReady;
+  hostStatus.textContent = currentState.bothReady
+    ? "ready to start"
+    : "waiting for both players to build";
+
+  updateMetricDisplays();
+}
+
+function playBeep(freq = 700, duration = 120) {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const audioCtx = new AudioContextClass();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(freq, now);
+
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration / 1000);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration / 1000);
+  } catch (error) {
+    console.log("beep failed", error);
   }
+}
+
+function celebrateWinner() {
+  if (typeof confetti !== "function") return;
+
+  confetti({
+    particleCount: 160,
+    spread: 85,
+    startVelocity: 45,
+    origin: { y: 0.55 }
+  });
+
+  setTimeout(() => {
+    confetti({
+      particleCount: 100,
+      spread: 100,
+      startVelocity: 40,
+      origin: { y: 0.62 }
+    });
+  }, 250);
+}
+
+function parseReactionSummary(summary) {
+  const p1Reaction =
+    summary.player1ReactionTime ??
+    summary.player1?.reactionTime ??
+    summary.results?.player1?.reactionTime ??
+    null;
+
+  const p2Reaction =
+    summary.player2ReactionTime ??
+    summary.player2?.reactionTime ??
+    summary.results?.player2?.reactionTime ??
+    null;
+
+  const p1Finish =
+    summary.player1FinishTime ??
+    summary.player1?.trackTime ??
+    summary.player1?.finishTime ??
+    summary.results?.player1?.finishTime ??
+    null;
+
+  const p2Finish =
+    summary.player2FinishTime ??
+    summary.player2?.trackTime ??
+    summary.player2?.finishTime ??
+    summary.results?.player2?.finishTime ??
+    null;
+
+  const p1Race =
+    summary.player1RaceTime ??
+    summary.player1TotalTime ??
+    summary.player1?.raceTime ??
+    summary.player1?.totalTime ??
+    summary.results?.player1?.raceTime ??
+    (p1Reaction !== null && p1Finish !== null ? p1Reaction + p1Finish : null);
+
+  const p2Race =
+    summary.player2RaceTime ??
+    summary.player2TotalTime ??
+    summary.player2?.raceTime ??
+    summary.player2?.totalTime ??
+    summary.results?.player2?.raceTime ??
+    (p2Reaction !== null && p2Finish !== null ? p2Reaction + p2Finish : null);
+
+  raceResults.player1 = { reaction: p1Reaction, finish: p1Finish, race: p1Race };
+  raceResults.player2 = { reaction: p2Reaction, finish: p2Finish, race: p2Race };
+
+  updateMetricDisplays();
+
+  if (p1Race !== null && p2Race !== null) {
+    animateRace(p1Race, p2Race);
+  }
+}
+
+function resetBoardForNewRace() {
+  clearLights();
+  winnerBanner.textContent = "winner: waiting";
+  setTrackProgress("player1", 0);
+  setTrackProgress("player2", 0);
+  resetRaceMetrics();
 }
 
 startRaceBtn.addEventListener("click", () => {
-  resetBoard();
-  centerStatus.textContent = "Starting sequence...";
   socket.emit("start-race");
 });
 
+clearBtn.addEventListener("click", () => {
+  socket.emit("clear-game");
+});
+
+socket.on("connect", () => {
+  console.log("host connected");
+});
+
+socket.on("state-sync", (state) => {
+  currentState = state || currentState;
+
+  if (state && state.sessionId) {
+    currentSessionId = state.sessionId;
+    renderQrCodes();
+  }
+
+  renderAll();
+});
+
+socket.on("session-cleared", (payload) => {
+  if (payload && payload.sessionId) {
+    currentSessionId = payload.sessionId;
+    renderQrCodes();
+  }
+
+  currentState = {
+    player1: {},
+    player2: {},
+    bothReady: false,
+    sessionId: currentSessionId
+  };
+
+  resetBoardForNewRace();
+  renderAll();
+});
+
 socket.on("reset-race", () => {
-  resetBoard();
-  centerStatus.textContent = "Get Ready...";
+  resetBoardForNewRace();
+  hostStatus.textContent = "get ready";
 });
 
 socket.on("light-step", (step) => {
-  resetLights();
+  clearLights();
 
-  for (let i = 0; i < step; i += 1) {
-    lights[i].classList.add("active");
+  for (let i = 0; i < step; i++) {
+    if (lights[i]) lights[i].classList.add("active-light");
   }
 
-  centerStatus.textContent = `Lights: ${step}/5`;
+  playBeep(720, 110);
+  hostStatus.textContent = "wait for lights out";
 });
 
 socket.on("lights-out", () => {
-  resetLights();
-  centerStatus.textContent = "TAP NOW!";
+  clearLights();
+  lights.forEach(light => light.classList.add("go-light"));
+  playBeep(1150, 180);
+  hostStatus.textContent = "tap now";
 });
 
 socket.on("reaction-summary", (summary) => {
-  if (summary.player1) {
-    if (summary.player1.weight !== null && summary.player1.weight !== undefined) {
-      player1WeightEl.textContent = `${summary.player1.weight}g`;
-    }
-
-    if (summary.player1.type === "false-start") {
-      player1ResultEl.textContent = "False Start";
-      player1ScoreEl.textContent = "DQ";
-    } else if (summary.player1.type === "valid") {
-      player1ResultEl.textContent = formatSeconds(summary.player1.reactionTime);
-      player1ScoreEl.textContent = formatSeconds(summary.player1.totalTime);
-    }
-  }
-
-  if (summary.player2) {
-    if (summary.player2.weight !== null && summary.player2.weight !== undefined) {
-      player2WeightEl.textContent = `${summary.player2.weight}g`;
-    }
-
-    if (summary.player2.type === "false-start") {
-      player2ResultEl.textContent = "False Start";
-      player2ScoreEl.textContent = "DQ";
-    } else if (summary.player2.type === "valid") {
-      player2ResultEl.textContent = formatSeconds(summary.player2.reactionTime);
-      player2ScoreEl.textContent = formatSeconds(summary.player2.totalTime);
-    }
-  }
-
-  winnerBanner.textContent = `Winner: ${summary.winner}`;
-  centerStatus.textContent = "Race Result";
-
-  moveCarsToResult(summary);
-  showWinnerOverlay(summary.winner);
+  parseReactionSummary(summary);
 });
 
-socket.on("race-finished", (winner) => {
-  console.log("Race finished:", winner);
+socket.on("race-finished", (payload) => {
+  const winnerName = payload.winnerName || payload.winner || "winner";
+  winnerBanner.textContent = `${winnerName} wins`;
+  hostStatus.textContent = "race finished";
+  celebrateWinner();
 });
 
-resetBoard();
+loadParts();
+resetBoardForNewRace();

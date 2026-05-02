@@ -1,103 +1,126 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>neevo reaction race</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body class="host-page">
-  <div class="host-wrapper">
-    <div class="top-bar">
-      <div class="brand-top">
-        <img src="NeevoLogo.png" alt="neevo" class="neevo-logo-image" />
-      </div>
-
-      <h1>reaction race</h1>
-      <p class="subtitle">choose your weight. wait for lights out. fastest launch wins.</p>
-    </div>
-
-    <div class="main-layout track-layout">
-      <div class="qr-panel">
-        <h2>player 1</h2>
-        <canvas id="qrPlayer1"></canvas>
-        <p>scan to join</p>
-
-        <div class="side-info-card">
-          <div class="side-label">weight</div>
-          <div class="side-value" id="player1Weight">waiting</div>
-        </div>
-
-        <div class="side-info-card">
-          <div class="side-label">reaction</div>
-          <div class="side-value" id="player1Result">waiting</div>
-        </div>
-
-        <div class="side-info-card">
-          <div class="side-label">finish time</div>
-          <div class="side-value" id="player1Score">waiting</div>
-        </div>
-      </div>
-
-      <div class="track-center">
-        <div class="lights-row">
-          <div class="start-light" id="light1"></div>
-          <div class="start-light" id="light2"></div>
-          <div class="start-light" id="light3"></div>
-          <div class="start-light" id="light4"></div>
-          <div class="start-light" id="light5"></div>
-        </div>
-
-        <div class="center-status" id="centerStatus">press start race</div>
-
-        <div class="tracks-wrapper">
-          <div class="track">
-            <div class="lane-label">player 1</div>
-            <div class="finish-line"></div>
-            <div class="car car-image-wrap" id="car1">
-              <img src="assets/car1.png" alt="player 1 car" class="car-image" />
-            </div>
-          </div>
-
-          <div class="track">
-            <div class="lane-label">player 2</div>
-            <div class="finish-line"></div>
-            <div class="car car-image-wrap" id="car2">
-              <img src="assets/car2.png" alt="player 2 car" class="car-image" />
-            </div>
-          </div>
-        </div>
-
-        <div class="winner-banner" id="winnerBanner">winner: waiting</div>
-      </div>
-
-      <div class="qr-panel">
-        <h2>player 2</h2>
-        <canvas id="qrPlayer2"></canvas>
-        <p>scan to join</p>
-
-        <div class="side-info-card">
-          <div class="side-label">weight</div>
-          <div class="side-value" id="player2Weight">waiting</div>
-        </div>
-
-        <div class="side-info-card">
-          <div class="side-label">reaction</div>
-          <div class="side-value" id="player2Result">waiting</div>
-        </div>
-
-        <div class="side-info-card">
-          <div class="side-label">finish time</div>
-          <div class="side-value" id="player2Score">waiting</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="bottom-bar">
-      <button id="startRaceBtn">start race</button>
-      <p>tap only when all lights go out</p>
+  <div class="host-help-wrap">
+    <div class="host-help-icon">!</div>
+    <div class="host-help-tooltip">
+      <h3>Physics info</h3>
+      <p><strong>Total time = reaction time + car finish time.</strong></p>
+      <p><strong>Mass:</strong> lighter cars usually accelerate faster.</p>
+      <p><strong>Cd:</strong> lower Cd means less aerodynamic drag at high speed.</p>
+      <p><strong>Tradeoff:</strong> some cars are lighter but less aerodynamic, others are heavier but cleaner through the air.</p>
+      <p><strong>Winner:</strong> fastest total time wins.</p>
     </div>
   </div>
 
+  <div class="host-wrapper">
+    <aside class="player-panel" id="player1Panel">
+      <div class="ready-pill" id="player1Ready">not ready</div>
+      <div class="player-name" id="player1Name">player 1</div>
+
+      <div class="preview-car-wrap">
+        <img id="player1PreviewCar" class="full-car-preview" alt="player 1 car" />
+      </div>
+
+      <div class="mini-build-line" id="player1MiniBuild">mass / Cd: waiting</div>
+
+      <div class="qr-box" id="player1Qr"></div>
+      <div class="scan-text">scan to join</div>
+
+      <div class="stat-card">
+        <div class="stat-label">race time</div>
+        <div class="stat-value" id="player1RaceTime">waiting</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">reaction</div>
+        <div class="stat-value" id="player1Reaction">waiting</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">finish time</div>
+        <div class="stat-value" id="player1Finish">waiting</div>
+      </div>
+    </aside>
+
+    <main class="host-center">
+      <img src="NeevoLogo.png" alt="Neevo" class="neevo-logo" />
+
+      <h1 class="game-title">reaction race</h1>
+      <p class="game-subtitle">build your car. wait for lights out. fastest total time wins.</p>
+
+      <div class="lights-row">
+        <div class="race-light" id="light1"></div>
+        <div class="race-light" id="light2"></div>
+        <div class="race-light" id="light3"></div>
+        <div class="race-light" id="light4"></div>
+        <div class="race-light" id="light5"></div>
+      </div>
+
+      <div class="host-status" id="hostStatus">waiting for both players to build</div>
+      <div class="winner-banner" id="winnerBanner">winner: waiting</div>
+
+      <div class="tracks-wrap">
+        <div class="track-lane" id="lane1">
+          <div class="lane-label" id="lane1Label">player 1</div>
+          <div class="finish-line"></div>
+          <div class="track-car-wrap" id="trackCarWrap1">
+            <img id="trackCar1" class="full-track-car" alt="player 1 track car" />
+          </div>
+        </div>
+
+        <div class="track-lane" id="lane2">
+          <div class="lane-label" id="lane2Label">player 2</div>
+          <div class="finish-line"></div>
+          <div class="track-car-wrap" id="trackCarWrap2">
+            <img id="trackCar2" class="full-track-car" alt="player 2 track car" />
+          </div>
+        </div>
+      </div>
+
+      <div class="host-buttons">
+        <button id="startRaceBtn" class="main-btn" disabled>start race</button>
+        <button id="clearBtn" class="main-btn secondary-btn">clear</button>
+      </div>
+    </main>
+
+    <aside class="player-panel" id="player2Panel">
+      <div class="ready-pill" id="player2Ready">not ready</div>
+      <div class="player-name" id="player2Name">player 2</div>
+
+      <div class="preview-car-wrap">
+        <img id="player2PreviewCar" class="full-car-preview" alt="player 2 car" />
+      </div>
+
+      <div class="mini-build-line" id="player2MiniBuild">mass / Cd: waiting</div>
+
+      <div class="qr-box" id="player2Qr"></div>
+      <div class="scan-text">scan to join</div>
+
+      <div class="stat-card">
+        <div class="stat-label">race time</div>
+        <div class="stat-value" id="player2RaceTime">waiting</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">reaction</div>
+        <div class="stat-value" id="player2Reaction">waiting</div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-label">finish time</div>
+        <div class="stat-value" id="player2Finish">waiting</div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
   <script src="host.js"></script>
