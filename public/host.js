@@ -63,15 +63,18 @@ function buildJoinUrl(playerKey) {
 function renderQrCodes() {
   if (!currentSessionId) return;
 
-  player1Qr.innerHTML = "";
-  player2Qr.innerHTML = "";
+  player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
+  player2Qr.innerHTML = '<canvas id="qrCanvas2"></canvas>';
 
-  QRCode.toCanvas(buildJoinUrl("player1"), { width: 140 }, (err, canvas) => {
-    if (!err) player1Qr.appendChild(canvas);
+  const qrCanvas1 = document.getElementById("qrCanvas1");
+  const qrCanvas2 = document.getElementById("qrCanvas2");
+
+  QRCode.toCanvas(qrCanvas1, buildJoinUrl("player1"), { width: 140 }, function (err) {
+    if (err) console.error("QR1 failed", err);
   });
 
-  QRCode.toCanvas(buildJoinUrl("player2"), { width: 140 }, (err, canvas) => {
-    if (!err) player2Qr.appendChild(canvas);
+  QRCode.toCanvas(qrCanvas2, buildJoinUrl("player2"), { width: 140 }, function (err) {
+    if (err) console.error("QR2 failed", err);
   });
 }
 
