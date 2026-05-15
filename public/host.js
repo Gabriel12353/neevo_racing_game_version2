@@ -1,5 +1,10 @@
 const socket = io();
 
+const modeOverlay = document.getElementById("modeOverlay");
+const multiplayerModeBtn = document.getElementById("multiplayerModeBtn");
+const singleplayerModeBtn = document.getElementById("singleplayerModeBtn");
+const modeOverlayNote = document.getElementById("modeOverlayNote");
+
 const player1Ready = document.getElementById("player1Ready");
 const player2Ready = document.getElementById("player2Ready");
 const player1Name = document.getElementById("player1Name");
@@ -42,6 +47,7 @@ const lights = [
 
 let partsData = null;
 let currentSessionId = null;
+let selectedMode = null;
 
 let currentState = {
   player1: {},
@@ -61,7 +67,7 @@ function buildJoinUrl(playerKey) {
 }
 
 function renderQrCodes() {
-  if (!currentSessionId) return;
+  if (!currentSessionId || selectedMode !== "multiplayer") return;
 
   player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
   player2Qr.innerHTML = '<canvas id="qrCanvas2"></canvas>';
@@ -77,6 +83,42 @@ function renderQrCodes() {
     if (err) console.error("QR2 failed", err);
   });
 }
+
+function showModeOverlay() {
+  modeOverlay.style.display = "flex";
+  selectedMode = null;
+  startRaceBtn.disabled = true;
+  clearBtn.disabled = true;
+}
+
+function hideModeOverlay() {
+  modeOverlay.style.display = "none";
+}
+
+function setMode(mode) {
+  selectedMode = mode;
+
+  if (mode === "multiplayer") {
+    modeOverlayNote.textContent = "multiplayer selected";
+    hideModeOverlay();
+    clearBtn.disabled = false;
+    renderQrCodes();
+    renderAll();
+    return;
+  }
+
+  if (mode === "singleplayer") {
+    modeOverlayNote.textContent = "singleplayer comes next";
+  }
+}
+
+multiplayerModeBtn.addEventListener("click", () => {
+  setMode("multiplayer");
+});
+
+singleplayerModeBtn.addEventListener("click", () => {
+  setMode("singleplayer");
+});
 
 async function loadParts() {
   try {
@@ -203,7 +245,7 @@ function renderPlayerCard(playerKey) {
   nameEl.textContent = getPlayerName(playerKey);
 
   if (buildInfo) {
-    miniBuildEl.textContent = `${buildInfo.totalMass}g / Cd ${buildInfo.totalCd.toFixed(3)}`;
+    miniBuildEl.textContent = `${Number(buildInfo.totalMass).toFixed(1)}g / Cd ${buildInfo.totalCd.toFixed(3)}`;
   } else {
     miniBuildEl.textContent = "mass / Cd: waiting";
   }
@@ -277,10 +319,11 @@ function renderAll() {
   renderPlayerCard("player2");
   renderTrackCars();
 
-  startRaceBtn.disabled = !currentState.bothReady;
-  hostStatus.textContent = currentState.bothReady
-    ? "ready to start"
-    : "waiting for both players to build";
+  startRaceBtn.disabled = !(selectedMode === "multiplayer" && currentState.bothReady);
+  hostStatus.textContent =
+    selectedMode === "multiplayer"
+      ? (currentState.bothReady ? "ready to start" : "waiting for both players to build")
+      : "choose a mode";
 
   updateMetricDisplays();
 }
@@ -393,10 +436,12 @@ function resetBoardForNewRace() {
 }
 
 startRaceBtn.addEventListener("click", () => {
+  if (selectedMode !== "multiplayer") return;
   socket.emit("start-race");
 });
 
 clearBtn.addEventListener("click", () => {
+  if (selectedMode !== "multiplayer") return;
   socket.emit("clear-game");
 });
 
@@ -409,7 +454,9 @@ socket.on("state-sync", (state) => {
 
   if (state && state.sessionId) {
     currentSessionId = state.sessionId;
-    renderQrCodes();
+    if (selectedMode === "multiplayer") {
+      renderQrCodes();
+    }
   }
 
   renderAll();
@@ -418,7 +465,9 @@ socket.on("state-sync", (state) => {
 socket.on("session-cleared", (payload) => {
   if (payload && payload.sessionId) {
     currentSessionId = payload.sessionId;
-    renderQrCodes();
+    if (selectedMode === "multiplayer") {
+      renderQrCodes();
+    }
   }
 
   currentState = {
@@ -468,3 +517,4 @@ socket.on("race-finished", (payload) => {
 
 loadParts();
 resetBoardForNewRace();
+showModeOverlay();
