@@ -477,7 +477,7 @@ function handleTapPress(event) {
     event.stopPropagation();
   }
 
-  const now = Date.now();
+  const now = performance.now();
   if (now - lastTapPressAt < 180) return;
   lastTapPressAt = now;
 
@@ -509,7 +509,7 @@ function handleTapPress(event) {
   playTapBuzzer();
   alreadyTapped = true;
 
-  const reactionTime = (performance.now() - lightsOutTime) / 1000;
+  const reactionTime = (now - lightsOutTime) / 1000;
 
   tapButton.disabled = true;
   setButtonState("ready", `${reactionTime.toFixed(3)}s`);
@@ -624,7 +624,7 @@ editBuildBtn.addEventListener("click", () => {
   }
 });
 
-tapButton.addEventListener("pointerup", handleTapPress);
+tapButton.addEventListener("pointerdown", handleTapPress);
 tapButton.addEventListener("click", (e) => e.preventDefault());
 tapButton.addEventListener(
   "touchstart",
