@@ -491,8 +491,6 @@ body {
   opacity: 0.9;
 }
 
-/* CONTROLLER */
-
 .controller-page {
   margin: 0;
   min-height: 100vh;
@@ -783,20 +781,6 @@ body {
   color: var(--neevo-cream);
 }
 
-@media (max-width: 1400px) {
-  .host-wrapper {
-    grid-template-columns: 220px 1fr 220px;
-  }
-
-  .track-lane {
-    height: 130px;
-  }
-
-  .winner-banner {
-    font-size: 2.4rem;
-  }
-}
-
 .singleplayer-host .host-wrapper {
   grid-template-columns: 260px 1fr;
   max-width: 1600px;
@@ -819,15 +803,15 @@ body {
 }
 
 .preset-red {
-  filter: sepia(1) saturate(5.5) hue-rotate(-55deg) brightness(1.0);
+  filter: sepia(1) saturate(5.5) hue-rotate(-55deg) brightness(1);
 }
 
 .preset-green {
-  filter: sepia(1) saturate(4.8) hue-rotate(35deg) brightness(1.0);
+  filter: sepia(1) saturate(4.8) hue-rotate(35deg) brightness(1);
 }
 
 .preset-blue {
-  filter: sepia(1) saturate(5.2) hue-rotate(150deg) brightness(1.0);
+  filter: sepia(1) saturate(5.2) hue-rotate(150deg) brightness(1);
 }
 
 .preset-regionals {
@@ -857,4 +841,43 @@ body {
 
 .menu-btn:hover {
   background: #ff9243;
+}
+
+.magicpath-btn {
+  position: fixed;
+  top: 14px;
+  left: 66px;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #d63a3a;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.magicpath-btn:hover {
+  background: #ef4b4b;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1400px) {
+  .host-wrapper {
+    grid-template-columns: 220px 1fr 220px;
+  }
+
+  .track-lane {
+    height: 130px;
+  }
+
+  .winner-banner {
+    font-size: 2.4rem;
+  }
 }
