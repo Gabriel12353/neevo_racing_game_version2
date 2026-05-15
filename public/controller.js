@@ -780,6 +780,13 @@ socket.on("reaction-summary", (summary) => {
       ? "player2"
       : summary.winner;
 
+  const singleplayerFalseStart =
+    currentMode === "singleplayer" && summary.winner === "False start";
+
+  if (singleplayerFalseStart) {
+    return;
+  }
+
   if (winnerNormalized === currentPlayer || currentMode === "singleplayer") {
     triggerPhoneWinEffects();
   }

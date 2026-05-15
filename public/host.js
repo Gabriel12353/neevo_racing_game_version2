@@ -589,15 +589,22 @@ socket.on("reaction-summary", (summary) => {
 
 socket.on("race-finished", (payload) => {
   if (selectedMode === "singleplayer") {
-    winnerBanner.textContent =
-      payload.winner === "False start"
-        ? "false start"
-        : `${payload.winnerName} finished`;
-  } else {
-    const winnerName = payload.winnerName || payload.winner || "winner";
-    winnerBanner.textContent = `${winnerName} wins`;
+    const isFalseStart = payload.winner === "False start";
+
+    winnerBanner.textContent = isFalseStart
+      ? "false start"
+      : `${payload.winnerName} finished`;
+
+    hostStatus.textContent = "race finished";
+
+    if (!isFalseStart) {
+      celebrateWinner();
+    }
+    return;
   }
 
+  const winnerName = payload.winnerName || payload.winner || "winner";
+  winnerBanner.textContent = `${winnerName} wins`;
   hostStatus.textContent = "race finished";
   celebrateWinner();
 });
