@@ -68,6 +68,10 @@ let alreadyTapped = false;
 let lightsOutTime = 0;
 let lastTapPressAt = 0;
 
+function formatMass(value) {
+  return `${Number(value).toFixed(1)}g`;
+}
+
 function isPlayerTwo() {
   return currentPlayer === "player2";
 }
@@ -202,7 +206,7 @@ function getSelectedBuild() {
   const body = partsData.body[selectedIndexes.body];
   const rear = partsData.rear[selectedIndexes.rear];
 
-  const totalMass = front.mass + body.mass + rear.mass;
+  const totalMass = Number((front.mass + body.mass + rear.mass).toFixed(1));
   const totalCd = Number((front.cd + body.cd + rear.cd).toFixed(3));
 
   return {
@@ -295,15 +299,15 @@ function renderBuilder() {
 
   frontImage.src = getPlayerAssetPath(front.image);
   frontName.textContent = front.name;
-  frontStats.textContent = `${front.mass}g • Cd ${front.cd.toFixed(3)}`;
+  frontStats.textContent = `${formatMass(front.mass)} • Cd ${front.cd.toFixed(3)}`;
 
   bodyImage.src = getPlayerAssetPath(body.image);
   bodyName.textContent = body.name;
-  bodyStats.textContent = `${body.mass}g • Cd ${body.cd.toFixed(3)}`;
+  bodyStats.textContent = `${formatMass(body.mass)} • Cd ${body.cd.toFixed(3)}`;
 
   rearImage.src = getPlayerAssetPath(rear.image);
   rearName.textContent = rear.name;
-  rearStats.textContent = `${rear.mass}g • Cd ${rear.cd.toFixed(3)}`;
+  rearStats.textContent = `${formatMass(rear.mass)} • Cd ${rear.cd.toFixed(3)}`;
 
   updateSelectedUi();
   updateSummary();
@@ -350,9 +354,9 @@ function updateSummary() {
     return;
   }
 
-  massSummary.textContent = `total mass: ${selectedBuild.totalMass}g`;
+  massSummary.textContent = `total mass: ${formatMass(selectedBuild.totalMass)}`;
   cdSummary.textContent = `total Cd: ${selectedBuild.totalCd.toFixed(3)}`;
-  readyMassText.textContent = `total mass: ${selectedBuild.totalMass}g`;
+  readyMassText.textContent = `total mass: ${formatMass(selectedBuild.totalMass)}`;
   readyCdText.textContent = `total Cd: ${selectedBuild.totalCd.toFixed(3)}`;
   confirmBuildBtn.disabled = false;
 }
