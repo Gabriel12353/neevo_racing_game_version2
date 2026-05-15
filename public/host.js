@@ -4,6 +4,7 @@ const modeOverlay = document.getElementById("modeOverlay");
 const multiplayerModeBtn = document.getElementById("multiplayerModeBtn");
 const singleplayerModeBtn = document.getElementById("singleplayerModeBtn");
 const modeOverlayNote = document.getElementById("modeOverlayNote");
+const menuBtn = document.getElementById("menuBtn");
 
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -53,6 +54,7 @@ const lights = [
 let partsData = null;
 let currentSessionId = null;
 let selectedMode = null;
+let modeChosenThisPageLoad = false;
 
 let currentState = {
   player1: {},
@@ -110,8 +112,11 @@ function renderQrCodes() {
 function showModeOverlay() {
   modeOverlay.style.display = "flex";
   selectedMode = null;
+  modeChosenThisPageLoad = false;
   startRaceBtn.disabled = true;
   clearBtn.disabled = true;
+  renderQrCodes();
+  renderAll();
 }
 
 function hideModeOverlay() {
@@ -120,10 +125,17 @@ function hideModeOverlay() {
 
 function setMode(mode) {
   selectedMode = mode;
+  modeChosenThisPageLoad = true;
   modeOverlayNote.textContent = mode === "multiplayer" ? "multiplayer selected" : "singleplayer selected";
   hideModeOverlay();
   clearBtn.disabled = false;
   socket.emit("set-mode", { mode });
+  renderQrCodes();
+  renderAll();
+}
+
+function resetToMenu() {
+  socket.emit("reset-all");
 }
 
 multiplayerModeBtn.addEventListener("click", () => {
@@ -132,6 +144,10 @@ multiplayerModeBtn.addEventListener("click", () => {
 
 singleplayerModeBtn.addEventListener("click", () => {
   setMode("singleplayer");
+});
+
+menuBtn.addEventListener("click", () => {
+  resetToMenu();
 });
 
 async function loadParts() {
@@ -508,7 +524,7 @@ socket.on("state-sync", (state) => {
     currentSessionId = state.sessionId;
   }
 
-  if (state && state.mode) {
+  if (modeChosenThisPageLoad && state && state.mode) {
     selectedMode = state.mode;
     hideModeOverlay();
     clearBtn.disabled = false;
@@ -525,10 +541,10 @@ socket.on("session-cleared", (payload) => {
 
   if (payload?.keepMode) {
     selectedMode = payload.mode || selectedMode;
+    modeChosenThisPageLoad = true;
     hideModeOverlay();
     clearBtn.disabled = false;
   } else {
-    selectedMode = null;
     showModeOverlay();
   }
 
