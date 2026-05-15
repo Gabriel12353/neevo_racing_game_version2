@@ -881,3 +881,92 @@ body {
     font-size: 2.4rem;
   }
 }
+
+.leaderboard-card {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 10px;
+  border: 2px solid rgba(241, 122, 33, 0.45);
+  border-radius: 22px;
+  padding: 16px 18px;
+  background: rgba(40, 40, 40, 0.82);
+  box-sizing: border-box;
+}
+
+.leaderboard-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #f17a21;
+  font-family: var(--neevo-display);
+  text-transform: lowercase;
+  text-align: center;
+}
+
+.leaderboard-subtitle {
+  margin-top: 2px;
+  margin-bottom: 14px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--neevo-cream);
+  opacity: 0.85;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 58px 1fr 110px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(241, 122, 33, 0.18);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard-rank {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #f17a21;
+  text-align: center;
+}
+
+.leaderboard-main {
+  min-width: 0;
+}
+
+.leaderboard-name {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--neevo-cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.leaderboard-meta {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: var(--neevo-cream);
+  opacity: 0.78;
+}
+
+.leaderboard-time {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-align: right;
+}
+
+.leaderboard-empty {
+  text-align: center;
+  padding: 16px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--neevo-cream);
+  opacity: 0.8;
+}

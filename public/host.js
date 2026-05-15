@@ -5,6 +5,7 @@ const multiplayerModeBtn = document.getElementById("multiplayerModeBtn");
 const singleplayerModeBtn = document.getElementById("singleplayerModeBtn");
 const modeOverlayNote = document.getElementById("modeOverlayNote");
 const menuBtn = document.getElementById("menuBtn");
+const leaderboardList = document.getElementById("leaderboardList");
 
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -72,6 +73,52 @@ let raceResults = {
 function buildJoinUrl(playerKey) {
   if (!currentSessionId) return "#";
   return `${window.location.origin}/controller.html?player=${playerKey}&session=${currentSessionId}`;
+}
+
+async function loadLeaderboard() {
+  try {
+    const response = await fetch("/api/leaderboard");
+    if (!response.ok) return;
+    const rows = await response.json();
+    renderLeaderboard(rows);
+  } catch (error) {
+    console.error("failed to load leaderboard", error);
+  }
+}
+
+function renderLeaderboard(rows) {
+  if (!leaderboardList) return;
+
+  if (!rows || !rows.length) {
+    leaderboardList.innerHTML = '<div class="leaderboard-empty">no results yet</div>';
+    return;
+  }
+
+  leaderboardList.innerHTML = rows
+    .map((row, index) => {
+      return `
+        <div class="leaderboard-row">
+          <div class="leaderboard-rank">#${index + 1}</div>
+          <div class="leaderboard-main">
+            <div class="leaderboard-name">${escapeHtml(row.name || "player")}</div>
+            <div class="leaderboard-meta">
+              reaction ${Number(row.reactionTime).toFixed(3)}s • finish ${Number(row.trackTime).toFixed(3)}s
+            </div>
+          </div>
+          <div class="leaderboard-time">${Number(row.totalTime).toFixed(3)}s</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function renderQrCodes() {
@@ -587,28 +634,23 @@ socket.on("reaction-summary", (summary) => {
   parseReactionSummary(summary);
 });
 
-socket.on("race-finished", (payload) => {
+socket.on("race-finished", async (payload) => {
   if (selectedMode === "singleplayer") {
-    const isFalseStart = payload.winner === "False start";
-
-    winnerBanner.textContent = isFalseStart
-      ? "false start"
-      : `${payload.winnerName} finished`;
-
-    hostStatus.textContent = "race finished";
-
-    if (!isFalseStart) {
-      celebrateWinner();
-    }
-    return;
+    winnerBanner.textContent =
+      payload.winner === "False start"
+        ? "false start"
+        : `${payload.winnerName} finished`;
+  } else {
+    const winnerName = payload.winnerName || payload.winner || "winner";
+    winnerBanner.textContent = `${winnerName} wins`;
+    await loadLeaderboard();
   }
 
-  const winnerName = payload.winnerName || payload.winner || "winner";
-  winnerBanner.textContent = `${winnerName} wins`;
   hostStatus.textContent = "race finished";
   celebrateWinner();
 });
 
 loadParts();
+loadLeaderboard();
 resetBoardForNewRace();
 showModeOverlay();

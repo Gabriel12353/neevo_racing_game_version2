@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const fs = require("fs");
 const { CAR_PARTS, buildSelection } = require("./carParts");
 const { simulateRun } = require("./physicsEngine");
 
@@ -17,6 +18,51 @@ app.get("/", (req, res) => {
 
 app.get("/api/parts", (req, res) => {
   res.json(CAR_PARTS);
+});
+
+const leaderboardFile = path.join(__dirname, "leaderboard.json");
+
+function ensureLeaderboardFile() {
+  if (!fs.existsSync(leaderboardFile)) {
+    fs.writeFileSync(leaderboardFile, JSON.stringify([], null, 2), "utf8");
+  }
+}
+
+function readLeaderboard() {
+  try {
+    ensureLeaderboardFile();
+    const raw = fs.readFileSync(leaderboardFile, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Failed to read leaderboard:", error);
+    return [];
+  }
+}
+
+function writeLeaderboard(entries) {
+  try {
+    fs.writeFileSync(leaderboardFile, JSON.stringify(entries, null, 2), "utf8");
+  } catch (error) {
+    console.error("Failed to write leaderboard:", error);
+  }
+}
+
+function addLeaderboardEntry(entry) {
+  const entries = readLeaderboard();
+  entries.push(entry);
+  entries.sort((a, b) => a.totalTime - b.totalTime);
+  writeLeaderboard(entries);
+}
+
+function getTopLeaderboard(limit = 20) {
+  return readLeaderboard()
+    .sort((a, b) => a.totalTime - b.totalTime)
+    .slice(0, limit);
+}
+
+app.get("/api/leaderboard", (req, res) => {
+  res.json(getTopLeaderboard(20));
 });
 
 const SINGLEPLAYER_PRESETS = [
@@ -280,6 +326,29 @@ function getWinner(summary) {
   return "No result";
 }
 
+function storeMultiplayerAttempts(summary) {
+  if (currentMode !== "multiplayer") return;
+
+  const maybeStore = (playerLabel, result) => {
+    if (!result || result.type !== "valid") return;
+
+    addLeaderboardEntry({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      player: playerLabel,
+      name: result.name || playerLabel,
+      totalTime: Number(result.totalTime.toFixed(3)),
+      reactionTime: Number(result.reactionTime.toFixed(3)),
+      trackTime: Number(result.trackTime.toFixed(3)),
+      mass: Number(result.build.totalMass.toFixed(1)),
+      cd: Number(result.build.totalCd.toFixed(3)),
+      createdAt: new Date().toISOString()
+    });
+  };
+
+  maybeStore("Player 1", summary.player1);
+  maybeStore("Player 2", summary.player2);
+}
+
 function maybeFinishRace() {
   if (raceFinished) return;
 
@@ -311,6 +380,8 @@ function maybeFinishRace() {
       : summary.winner === "Tie"
       ? "tie"
       : "no result";
+
+  storeMultiplayerAttempts(summary);
 
   io.emit("reaction-summary", summary);
   io.emit("race-finished", {
@@ -540,6 +611,8 @@ io.on("connection", (socket) => {
     console.log("A user disconnected", socket.id);
   });
 });
+
+ensureLeaderboardFile();
 
 server.listen(process.env.PORT || 3000, "0.0.0.0", () => {
   console.log("Server is running");
