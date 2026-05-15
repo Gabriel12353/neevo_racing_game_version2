@@ -89,6 +89,27 @@
       <button id="confirmBuildBtn" class="normal-action-btn">confirm full build</button>
     </div>
 
+    <div id="singlePresetPanel" class="builder-panel" style="display:none;">
+      <div class="builder-section">
+        <div class="builder-label">car preset</div>
+        <div class="builder-row">
+          <button id="presetPrevBtn" class="arrow-btn">‹</button>
+
+          <div class="part-card">
+            <img id="presetImage" class="part-image preset-preview-image" alt="preset car" />
+            <div id="presetName" class="part-name">preset</div>
+            <div id="presetStats" class="part-stats">waiting</div>
+            <button id="presetSelectBtn" class="part-select-btn">select car</button>
+            <div id="presetSelectedText" class="part-selected-text">not selected</div>
+          </div>
+
+          <button id="presetNextBtn" class="arrow-btn">›</button>
+        </div>
+      </div>
+
+      <button id="confirmPresetBtn" class="normal-action-btn">confirm car</button>
+    </div>
+
     <div id="readyPanel" class="ready-panel" style="display:none;">
       <div class="ready-title">build selected</div>
       <div id="readyMassText" class="build-summary-line">total mass: waiting</div>

@@ -796,3 +796,44 @@ body {
     font-size: 2.4rem;
   }
 }
+
+.singleplayer-host .host-wrapper {
+  grid-template-columns: 260px 1fr;
+  max-width: 1600px;
+}
+
+.singleplayer-host #player2Panel {
+  display: none !important;
+}
+
+.singleplayer-host #lane2 {
+  display: none !important;
+}
+
+.preset-preview-image {
+  height: 70px;
+}
+
+.preset-yellow {
+  filter: sepia(1) saturate(4.5) hue-rotate(-10deg) brightness(1.15);
+}
+
+.preset-red {
+  filter: sepia(1) saturate(5.5) hue-rotate(-55deg) brightness(1.0);
+}
+
+.preset-green {
+  filter: sepia(1) saturate(4.8) hue-rotate(35deg) brightness(1.0);
+}
+
+.preset-blue {
+  filter: sepia(1) saturate(5.2) hue-rotate(150deg) brightness(1.0);
+}
+
+.preset-regionals {
+  filter: none;
+}
+
+.preset-nationals {
+  filter: none;
+}

@@ -6,8 +6,10 @@ const nameEntryPanel = document.getElementById("nameEntryPanel");
 const playerNameInput = document.getElementById("playerNameInput");
 const joinWithNameBtn = document.getElementById("joinWithNameBtn");
 const builderPanel = document.getElementById("builderPanel");
+const singlePresetPanel = document.getElementById("singlePresetPanel");
 const readyPanel = document.getElementById("readyPanel");
 const confirmBuildBtn = document.getElementById("confirmBuildBtn");
+const confirmPresetBtn = document.getElementById("confirmPresetBtn");
 const editBuildBtn = document.getElementById("editBuildBtn");
 const tapButton = document.getElementById("tapButton");
 const phoneWinnerOverlay = document.getElementById("phoneWinnerOverlay");
@@ -33,6 +35,12 @@ const frontSelectedText = document.getElementById("frontSelectedText");
 const bodySelectedText = document.getElementById("bodySelectedText");
 const rearSelectedText = document.getElementById("rearSelectedText");
 
+const presetImage = document.getElementById("presetImage");
+const presetName = document.getElementById("presetName");
+const presetStats = document.getElementById("presetStats");
+const presetSelectBtn = document.getElementById("presetSelectBtn");
+const presetSelectedText = document.getElementById("presetSelectedText");
+
 const massSummary = document.getElementById("massSummary");
 const cdSummary = document.getElementById("cdSummary");
 const readyMassText = document.getElementById("readyMassText");
@@ -45,6 +53,8 @@ let sessionId = params.get("session") || null;
 let currentPlayer = null;
 let currentName = "";
 let partsData = null;
+let presetsData = [];
+let currentMode = null;
 
 let bothPlayersReady = false;
 let raceArmed = false;
@@ -54,13 +64,15 @@ let raceFinished = false;
 const currentIndexes = {
   front: 0,
   body: 0,
-  rear: 0
+  rear: 0,
+  preset: 0
 };
 
 const selectedIndexes = {
   front: null,
   body: null,
-  rear: null
+  rear: null,
+  preset: null
 };
 
 let canTap = false;
@@ -70,24 +82,6 @@ let lastTapPressAt = 0;
 
 function formatMass(value) {
   return `${Number(value).toFixed(1)}g`;
-}
-
-function isPlayerTwo() {
-  return currentPlayer === "player2";
-}
-
-function getPlayerAssetPath(originalPath) {
-  if (!originalPath) return originalPath;
-  if (!isPlayerTwo()) return originalPath;
-
-  const match = originalPath.match(/^\/assets\/parts\/(front|body|rear)\/([a-z]+)(\d+)\.png$/i);
-  if (!match) return originalPath;
-
-  const folder = match[1];
-  const baseName = match[2];
-  const number = match[3];
-
-  return `/assets/parts/${folder}/w${baseName}${number}.png`;
 }
 
 function makeAudioContext() {
@@ -192,6 +186,42 @@ function setButtonState(state, text) {
   tapButton.textContent = text;
 }
 
+function updateTapAvailability() {
+  const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
+  tapButton.disabled = !(currentPlayer && sessionId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
+}
+
+function updateEditBuildAvailability() {
+  const lockBuild = raceArmed || raceStarted || raceFinished;
+  editBuildBtn.disabled = lockBuild;
+}
+
+function resetTapState() {
+  canTap = false;
+  alreadyTapped = false;
+  tapButton.disabled = true;
+  setButtonState("ready", "tap");
+}
+
+function showExpiredMessage() {
+  nameEntryPanel.style.display = "block";
+  builderPanel.style.display = "none";
+  singlePresetPanel.style.display = "none";
+  readyPanel.style.display = "none";
+  phoneWinnerOverlay.style.display = "none";
+  playerNameInput.value = "";
+  currentPlayer = null;
+  currentName = "";
+  bothPlayersReady = false;
+  raceArmed = false;
+  raceStarted = false;
+  raceFinished = false;
+  controllerTitle.textContent = "car builder";
+  controllerStatus.textContent = "session expired. scan the new qr";
+  resetTapState();
+  updateEditBuildAvailability();
+}
+
 function getSelectedBuild() {
   if (!partsData) return null;
   if (
@@ -218,39 +248,33 @@ function getSelectedBuild() {
   };
 }
 
-function updateTapAvailability() {
-  const hasBuild = !!getSelectedBuild();
-  tapButton.disabled = !(currentPlayer && sessionId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
+function getSelectedPreset() {
+  if (!presetsData.length || selectedIndexes.preset === null) return null;
+  return presetsData[selectedIndexes.preset];
 }
 
-function updateEditBuildAvailability() {
-  const lockBuild = raceArmed || raceStarted || raceFinished;
-  editBuildBtn.disabled = lockBuild;
+function getCurrentPart(type) {
+  if (!partsData) return null;
+  return partsData[type][currentIndexes[type]];
 }
 
-function resetTapState() {
-  canTap = false;
-  alreadyTapped = false;
-  tapButton.disabled = true;
-  setButtonState("ready", "tap");
+function getCurrentPreset() {
+  if (!presetsData.length) return null;
+  return presetsData[currentIndexes.preset];
 }
 
-function showExpiredMessage() {
-  nameEntryPanel.style.display = "block";
-  builderPanel.style.display = "none";
+function showBuilderPanel() {
+  if (raceArmed || raceStarted || raceFinished) return;
+
+  builderPanel.style.display = currentMode === "multiplayer" ? "block" : "none";
+  singlePresetPanel.style.display = currentMode === "singleplayer" ? "block" : "none";
   readyPanel.style.display = "none";
-  phoneWinnerOverlay.style.display = "none";
-  playerNameInput.value = "";
-  currentPlayer = null;
-  currentName = "";
-  bothPlayersReady = false;
-  raceArmed = false;
-  raceStarted = false;
-  raceFinished = false;
-  controllerTitle.textContent = "car builder";
-  controllerStatus.textContent = "session expired. scan the new qr";
-  resetTapState();
-  updateEditBuildAvailability();
+}
+
+function showReadyPanel() {
+  builderPanel.style.display = "none";
+  singlePresetPanel.style.display = "none";
+  readyPanel.style.display = "block";
 }
 
 function joinPlayerWithName() {
@@ -276,18 +300,16 @@ function joinPlayerWithName() {
   });
 
   controllerTitle.textContent = currentName;
-  controllerStatus.textContent = "choose your components";
+  controllerStatus.textContent =
+    currentMode === "singleplayer" ? "choose your car" : "choose your components";
+
   nameEntryPanel.style.display = "none";
-  builderPanel.style.display = "block";
+  showBuilderPanel();
 
   renderBuilder();
+  renderPresetChooser();
   updateTapAvailability();
   updateEditBuildAvailability();
-}
-
-function getCurrentPart(type) {
-  if (!partsData) return null;
-  return partsData[type][currentIndexes[type]];
 }
 
 function renderBuilder() {
@@ -297,15 +319,15 @@ function renderBuilder() {
   const body = getCurrentPart("body");
   const rear = getCurrentPart("rear");
 
-  frontImage.src = getPlayerAssetPath(front.image);
+  frontImage.src = front.image;
   frontName.textContent = front.name;
   frontStats.textContent = `${formatMass(front.mass)} • Cd ${front.cd.toFixed(3)}`;
 
-  bodyImage.src = getPlayerAssetPath(body.image);
+  bodyImage.src = body.image;
   bodyName.textContent = body.name;
   bodyStats.textContent = `${formatMass(body.mass)} • Cd ${body.cd.toFixed(3)}`;
 
-  rearImage.src = getPlayerAssetPath(rear.image);
+  rearImage.src = rear.image;
   rearName.textContent = rear.name;
   rearStats.textContent = `${formatMass(rear.mass)} • Cd ${rear.cd.toFixed(3)}`;
 
@@ -361,15 +383,34 @@ function updateSummary() {
   confirmBuildBtn.disabled = false;
 }
 
-function showBuilderPanel() {
-  if (raceArmed || raceStarted || raceFinished) return;
-  builderPanel.style.display = "block";
-  readyPanel.style.display = "none";
-}
+function renderPresetChooser() {
+  if (!presetsData.length) return;
 
-function showReadyPanel() {
-  builderPanel.style.display = "none";
-  readyPanel.style.display = "block";
+  const preset = getCurrentPreset();
+  if (!preset) return;
+
+  presetImage.src = preset.image;
+  presetImage.className = `part-image preset-preview-image ${preset.colorClass || ""}`;
+  presetName.textContent = preset.name;
+  presetStats.textContent = `${formatMass(preset.totalMass)} • Cd ${preset.totalCd.toFixed(3)}`;
+
+  const presetSelected = selectedIndexes.preset === currentIndexes.preset;
+  presetSelectBtn.classList.toggle("selected", presetSelected);
+  presetSelectBtn.textContent = presetSelected ? "selected" : "select car";
+
+  presetSelectedText.textContent =
+    selectedIndexes.preset === null
+      ? "not selected"
+      : `selected: ${presetsData[selectedIndexes.preset].name}`;
+
+  const selectedPreset = getSelectedPreset();
+  if (selectedPreset) {
+    readyMassText.textContent = `total mass: ${formatMass(selectedPreset.totalMass)}`;
+    readyCdText.textContent = `total Cd: ${selectedPreset.totalCd.toFixed(3)}`;
+    confirmPresetBtn.disabled = false;
+  } else {
+    confirmPresetBtn.disabled = true;
+  }
 }
 
 function cyclePart(type, direction) {
@@ -385,12 +426,33 @@ function cyclePart(type, direction) {
   renderBuilder();
 }
 
+function cyclePreset(direction) {
+  if (!presetsData.length) return;
+  if (raceArmed || raceStarted || raceFinished) return;
+
+  const maxIndex = presetsData.length - 1;
+  currentIndexes.preset += direction;
+
+  if (currentIndexes.preset < 0) currentIndexes.preset = maxIndex;
+  if (currentIndexes.preset > maxIndex) currentIndexes.preset = 0;
+
+  renderPresetChooser();
+}
+
 function selectPart(type) {
   if (raceArmed || raceStarted || raceFinished) return;
 
   selectedIndexes[type] = currentIndexes[type];
   updateSelectedUi();
   updateSummary();
+  updateTapAvailability();
+}
+
+function selectPreset() {
+  if (raceArmed || raceStarted || raceFinished) return;
+
+  selectedIndexes.preset = currentIndexes.preset;
+  renderPresetChooser();
   updateTapAvailability();
 }
 
@@ -404,8 +466,10 @@ function handleTapPress(event) {
   if (now - lastTapPressAt < 180) return;
   lastTapPressAt = now;
 
+  const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
+
   if (!currentPlayer || !sessionId) return;
-  if (!getSelectedBuild()) return;
+  if (!hasBuild) return;
   if (!bothPlayersReady) return;
   if (!raceArmed) return;
 
@@ -458,9 +522,13 @@ document.getElementById("bodyNextBtn").addEventListener("click", () => cyclePart
 document.getElementById("rearPrevBtn").addEventListener("click", () => cyclePart("rear", -1));
 document.getElementById("rearNextBtn").addEventListener("click", () => cyclePart("rear", 1));
 
+document.getElementById("presetPrevBtn").addEventListener("click", () => cyclePreset(-1));
+document.getElementById("presetNextBtn").addEventListener("click", () => cyclePreset(1));
+
 frontSelectBtn.addEventListener("click", () => selectPart("front"));
 bodySelectBtn.addEventListener("click", () => selectPart("body"));
 rearSelectBtn.addEventListener("click", () => selectPart("rear"));
+presetSelectBtn.addEventListener("click", () => selectPreset());
 
 confirmBuildBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
@@ -486,7 +554,34 @@ confirmBuildBtn.addEventListener("click", () => {
     sessionId
   });
 
-  controllerStatus.textContent = "waiting for both players";
+  controllerStatus.textContent = "waiting to start";
+  showReadyPanel();
+  resetTapState();
+  updateTapAvailability();
+  updateEditBuildAvailability();
+});
+
+confirmPresetBtn.addEventListener("click", () => {
+  if (raceArmed || raceStarted || raceFinished) return;
+
+  if (!currentPlayer || !sessionId) {
+    showExpiredMessage();
+    return;
+  }
+
+  const preset = getSelectedPreset();
+  if (!preset) {
+    controllerStatus.textContent = "select a car first";
+    return;
+  }
+
+  socket.emit("save-singleplayer-car", {
+    player: currentPlayer,
+    presetId: preset.id,
+    sessionId
+  });
+
+  controllerStatus.textContent = "ready to start";
   showReadyPanel();
   resetTapState();
   updateTapAvailability();
@@ -496,7 +591,7 @@ confirmBuildBtn.addEventListener("click", () => {
 editBuildBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
 
-  controllerStatus.textContent = "choose your components";
+  controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
   showBuilderPanel();
   resetTapState();
 
@@ -528,11 +623,20 @@ async function loadParts() {
 
     partsData = await response.json();
     renderBuilder();
-    updateTapAvailability();
-    updateEditBuildAvailability();
   } catch (error) {
     console.error(error);
     controllerStatus.textContent = "parts failed to load";
+  }
+}
+
+async function loadPresets() {
+  try {
+    const response = await fetch("/api/presets");
+    if (!response.ok) return;
+    presetsData = await response.json();
+    renderPresetChooser();
+  } catch (error) {
+    console.error(error);
   }
 }
 
@@ -543,6 +647,7 @@ socket.on("state-sync", (state) => {
     sessionId = state.sessionId;
   }
 
+  currentMode = state.mode;
   bothPlayersReady = !!state.bothReady;
 
   if (!currentPlayer) {
@@ -562,23 +667,40 @@ socket.on("state-sync", (state) => {
     controllerTitle.textContent = myState.name;
   }
 
+  if (currentMode === "singleplayer") {
+    editBuildBtn.textContent = "change car";
+  } else {
+    editBuildBtn.textContent = "change build";
+  }
+
   if (myState.ready && myState.build) {
-    selectedIndexes.front = myState.build.frontIndex;
-    selectedIndexes.body = myState.build.bodyIndex;
-    selectedIndexes.rear = myState.build.rearIndex;
+    if (currentMode === "singleplayer") {
+      const presetIndex = presetsData.findIndex((item) => item.id === myState.build.presetId);
+      if (presetIndex >= 0) {
+        selectedIndexes.preset = presetIndex;
+        currentIndexes.preset = presetIndex;
+      }
+      renderPresetChooser();
+    } else {
+      selectedIndexes.front = myState.build.frontIndex;
+      selectedIndexes.body = myState.build.bodyIndex;
+      selectedIndexes.rear = myState.build.rearIndex;
 
-    currentIndexes.front = myState.build.frontIndex;
-    currentIndexes.body = myState.build.bodyIndex;
-    currentIndexes.rear = myState.build.rearIndex;
+      currentIndexes.front = myState.build.frontIndex;
+      currentIndexes.body = myState.build.bodyIndex;
+      currentIndexes.rear = myState.build.rearIndex;
 
-    renderBuilder();
+      renderBuilder();
+    }
+
     showReadyPanel();
 
     if (!raceArmed && !raceStarted && !raceFinished) {
-      controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting for both players";
+      controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting";
     }
   } else if (!raceArmed && !raceStarted && !raceFinished) {
-    controllerStatus.textContent = "choose your components";
+    controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
+    showBuilderPanel();
   }
 
   updateTapAvailability();
@@ -590,8 +712,10 @@ socket.on("session-invalid", () => {
   showExpiredMessage();
 });
 
-socket.on("session-cleared", () => {
-  sessionId = null;
+socket.on("session-cleared", (payload) => {
+  if (payload?.sessionId) {
+    sessionId = null;
+  }
   showExpiredMessage();
 });
 
@@ -656,7 +780,7 @@ socket.on("reaction-summary", (summary) => {
       ? "player2"
       : summary.winner;
 
-  if (winnerNormalized === currentPlayer) {
+  if (winnerNormalized === currentPlayer || currentMode === "singleplayer") {
     triggerPhoneWinEffects();
   }
 });
@@ -666,6 +790,16 @@ socket.on("race-finished", (payload) => {
   canTap = false;
   tapButton.disabled = true;
   updateEditBuildAvailability();
+
+  if (currentMode === "singleplayer") {
+    if (payload.winner === "False start") {
+      controllerStatus.textContent = "false start";
+    } else {
+      phoneWinnerText.textContent = `${payload.winnerName} finished`;
+      phoneWinnerOverlay.style.display = "flex";
+    }
+    return;
+  }
 
   if (
     (currentPlayer === "player1" && payload.winner === "Player 1") ||
@@ -682,3 +816,4 @@ socket.on("race-finished", (payload) => {
 
 resetTapState();
 loadParts();
+loadPresets();

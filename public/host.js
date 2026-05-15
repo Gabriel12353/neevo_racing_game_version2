@@ -5,6 +5,11 @@ const multiplayerModeBtn = document.getElementById("multiplayerModeBtn");
 const singleplayerModeBtn = document.getElementById("singleplayerModeBtn");
 const modeOverlayNote = document.getElementById("modeOverlayNote");
 
+const player1Panel = document.getElementById("player1Panel");
+const player2Panel = document.getElementById("player2Panel");
+const lane1 = document.getElementById("lane1");
+const lane2 = document.getElementById("lane2");
+
 const player1Ready = document.getElementById("player1Ready");
 const player2Ready = document.getElementById("player2Ready");
 const player1Name = document.getElementById("player1Name");
@@ -53,7 +58,8 @@ let currentState = {
   player1: {},
   player2: {},
   bothReady: false,
-  sessionId: null
+  sessionId: null,
+  mode: null
 };
 
 let raceResults = {
@@ -67,7 +73,18 @@ function buildJoinUrl(playerKey) {
 }
 
 function renderQrCodes() {
-  if (!currentSessionId || selectedMode !== "multiplayer") return;
+  if (!currentSessionId) return;
+
+  if (selectedMode === "singleplayer") {
+    player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
+    player2Qr.innerHTML = "";
+
+    const qrCanvas1 = document.getElementById("qrCanvas1");
+    QRCode.toCanvas(qrCanvas1, buildJoinUrl("player1"), { width: 140 }, function (err) {
+      if (err) console.error("QR1 failed", err);
+    });
+    return;
+  }
 
   player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
   player2Qr.innerHTML = '<canvas id="qrCanvas2"></canvas>';
@@ -97,19 +114,16 @@ function hideModeOverlay() {
 
 function setMode(mode) {
   selectedMode = mode;
+  socket.emit("set-mode", { mode });
 
   if (mode === "multiplayer") {
     modeOverlayNote.textContent = "multiplayer selected";
-    hideModeOverlay();
-    clearBtn.disabled = false;
-    renderQrCodes();
-    renderAll();
-    return;
+  } else {
+    modeOverlayNote.textContent = "singleplayer selected";
   }
 
-  if (mode === "singleplayer") {
-    modeOverlayNote.textContent = "singleplayer comes next";
-  }
+  hideModeOverlay();
+  clearBtn.disabled = false;
 }
 
 multiplayerModeBtn.addEventListener("click", () => {
@@ -161,12 +175,16 @@ function getPlayerName(playerKey) {
 }
 
 function getPlayerBuild(playerKey) {
-  if (!partsData) return null;
-
   const player = currentState[playerKey] || {};
   const build = player.build;
 
   if (!build) return null;
+
+  if (build.mode === "singleplayer") {
+    return build;
+  }
+
+  if (!partsData) return null;
   if (
     build.frontIndex === undefined ||
     build.bodyIndex === undefined ||
@@ -195,6 +213,7 @@ function getPlayerBuild(playerKey) {
 
 function chooseCarFamily(buildInfo) {
   if (!buildInfo) return 1;
+  if (buildInfo.mode === "singleplayer") return buildInfo.carFamily || 1;
 
   const f = Number(buildInfo.frontIndex) + 1;
   const b = Number(buildInfo.bodyIndex) + 1;
@@ -210,13 +229,19 @@ function chooseCarFamily(buildInfo) {
 function getHostCarPath(playerKey, buildInfo) {
   if (!buildInfo) return "";
 
+  if (buildInfo.mode === "singleplayer") {
+    return buildInfo.image;
+  }
+
   const family = chooseCarFamily(buildInfo);
   const color = playerKey === "player2" ? "white" : "orange";
 
   return `/assets/cars/${color}/car${family}.png`;
 }
 
-function setCarImage(imgEl, playerKey, buildInfo) {
+function applyCarAppearance(imgEl, playerKey, buildInfo, imageType) {
+  if (!imgEl) return;
+
   const src = getHostCarPath(playerKey, buildInfo);
 
   if (!src) {
@@ -227,6 +252,9 @@ function setCarImage(imgEl, playerKey, buildInfo) {
 
   imgEl.src = src;
   imgEl.style.display = "block";
+
+  const baseClass = imageType === "track" ? "full-track-car" : "full-car-preview";
+  imgEl.className = `${baseClass}${buildInfo.colorClass ? ` ${buildInfo.colorClass}` : ""}`;
 }
 
 function renderPlayerCard(playerKey) {
@@ -242,7 +270,10 @@ function renderPlayerCard(playerKey) {
   readyEl.textContent = player.ready ? "ready" : "not ready";
   readyEl.classList.toggle("ready-on", !!player.ready);
 
-  nameEl.textContent = getPlayerName(playerKey);
+  nameEl.textContent =
+    selectedMode === "singleplayer" && playerKey === "player1"
+      ? (player.name || "player")
+      : getPlayerName(playerKey);
 
   if (buildInfo) {
     miniBuildEl.textContent = `${Number(buildInfo.totalMass).toFixed(1)}g / Cd ${buildInfo.totalCd.toFixed(3)}`;
@@ -251,8 +282,8 @@ function renderPlayerCard(playerKey) {
   }
 
   if (player.ready && buildInfo) {
-    setCarImage(previewEl, playerKey, buildInfo);
-    setCarImage(trackEl, playerKey, buildInfo);
+    applyCarAppearance(previewEl, playerKey, buildInfo, "preview");
+    applyCarAppearance(trackEl, playerKey, buildInfo, "track");
   } else {
     previewEl.removeAttribute("src");
     previewEl.style.display = "none";
@@ -262,7 +293,7 @@ function renderPlayerCard(playerKey) {
 }
 
 function renderTrackCars() {
-  lane1Label.textContent = getPlayerName("player1");
+  lane1Label.textContent = selectedMode === "singleplayer" ? (getPlayerName("player1") || "player") : getPlayerName("player1");
   lane2Label.textContent = getPlayerName("player2");
   setTrackProgress("player1", 0);
   setTrackProgress("player2", 0);
@@ -271,7 +302,7 @@ function renderTrackCars() {
 function setTrackProgress(playerKey, ratio) {
   const safeRatio = Math.max(0, Math.min(1, ratio));
   const wrap = playerKey === "player1" ? trackCarWrap1 : trackCarWrap2;
-  const lane = playerKey === "player1" ? document.getElementById("lane1") : document.getElementById("lane2");
+  const lane = playerKey === "player1" ? lane1 : lane2;
 
   if (!wrap || !lane) return;
 
@@ -285,15 +316,18 @@ function setTrackProgress(playerKey, ratio) {
 
 function animateRace(player1Total, player2Total) {
   const start = performance.now();
-  const maxTime = Math.max(player1Total || 0, player2Total || 0, 0.1) * 1000;
+  const effectiveP2 = selectedMode === "singleplayer" ? 999 : player2Total;
+  const maxTime = Math.max(player1Total || 0, effectiveP2 || 0, 0.1) * 1000;
 
   function step(now) {
     const elapsed = now - start;
     const p1Ratio = Math.min(elapsed / (player1Total * 1000 || 1), 1);
-    const p2Ratio = Math.min(elapsed / (player2Total * 1000 || 1), 1);
-
     setTrackProgress("player1", p1Ratio);
-    setTrackProgress("player2", p2Ratio);
+
+    if (selectedMode !== "singleplayer") {
+      const p2Ratio = Math.min(elapsed / (player2Total * 1000 || 1), 1);
+      setTrackProgress("player2", p2Ratio);
+    }
 
     if (elapsed < maxTime) {
       requestAnimationFrame(step);
@@ -305,25 +339,48 @@ function animateRace(player1Total, player2Total) {
 
 function updateMetricDisplays() {
   player1RaceTime.textContent = formatTime(raceResults.player1.race);
-  player2RaceTime.textContent = formatTime(raceResults.player2.race);
-
   player1Reaction.textContent = formatTime(raceResults.player1.reaction);
-  player2Reaction.textContent = formatTime(raceResults.player2.reaction);
-
   player1Finish.textContent = formatTime(raceResults.player1.finish);
-  player2Finish.textContent = formatTime(raceResults.player2.finish);
+
+  if (selectedMode === "singleplayer") {
+    player2RaceTime.textContent = "hidden";
+    player2Reaction.textContent = "hidden";
+    player2Finish.textContent = "hidden";
+  } else {
+    player2RaceTime.textContent = formatTime(raceResults.player2.race);
+    player2Reaction.textContent = formatTime(raceResults.player2.reaction);
+    player2Finish.textContent = formatTime(raceResults.player2.finish);
+  }
+}
+
+function applyModeLayout() {
+  if (selectedMode === "singleplayer") {
+    document.body.classList.add("singleplayer-host");
+    player2Panel.style.display = "none";
+    lane2.style.display = "none";
+  } else {
+    document.body.classList.remove("singleplayer-host");
+    player2Panel.style.display = "flex";
+    lane2.style.display = "block";
+  }
 }
 
 function renderAll() {
+  applyModeLayout();
   renderPlayerCard("player1");
   renderPlayerCard("player2");
   renderTrackCars();
 
-  startRaceBtn.disabled = !(selectedMode === "multiplayer" && currentState.bothReady);
-  hostStatus.textContent =
-    selectedMode === "multiplayer"
-      ? (currentState.bothReady ? "ready to start" : "waiting for both players to build")
-      : "choose a mode";
+  if (selectedMode === "singleplayer") {
+    startRaceBtn.disabled = !currentState.player1?.ready;
+    hostStatus.textContent = currentState.player1?.ready ? "ready to start" : "waiting for player";
+  } else if (selectedMode === "multiplayer") {
+    startRaceBtn.disabled = !currentState.bothReady;
+    hostStatus.textContent = currentState.bothReady ? "ready to start" : "waiting for both players to build";
+  } else {
+    startRaceBtn.disabled = true;
+    hostStatus.textContent = "choose a mode";
+  }
 
   updateMetricDisplays();
 }
@@ -422,7 +479,7 @@ function parseReactionSummary(summary) {
 
   updateMetricDisplays();
 
-  if (p1Race !== null && p2Race !== null) {
+  if (p1Race !== null) {
     animateRace(p1Race, p2Race);
   }
 }
@@ -436,13 +493,14 @@ function resetBoardForNewRace() {
 }
 
 startRaceBtn.addEventListener("click", () => {
-  if (selectedMode !== "multiplayer") return;
+  if (!selectedMode) return;
   socket.emit("start-race");
 });
 
 clearBtn.addEventListener("click", () => {
-  if (selectedMode !== "multiplayer") return;
   socket.emit("clear-game");
+  showModeOverlay();
+  applyModeLayout();
 });
 
 socket.on("connect", () => {
@@ -454,29 +512,26 @@ socket.on("state-sync", (state) => {
 
   if (state && state.sessionId) {
     currentSessionId = state.sessionId;
-    if (selectedMode === "multiplayer") {
-      renderQrCodes();
-    }
   }
 
+  renderQrCodes();
   renderAll();
 });
 
 socket.on("session-cleared", (payload) => {
   if (payload && payload.sessionId) {
     currentSessionId = payload.sessionId;
-    if (selectedMode === "multiplayer") {
-      renderQrCodes();
-    }
   }
 
   currentState = {
     player1: {},
     player2: {},
     bothReady: false,
-    sessionId: currentSessionId
+    sessionId: currentSessionId,
+    mode: payload?.mode || null
   };
 
+  renderQrCodes();
   resetBoardForNewRace();
   renderAll();
 });
@@ -499,7 +554,7 @@ socket.on("light-step", (step) => {
 
 socket.on("lights-out", () => {
   clearLights();
-  lights.forEach(light => light.classList.add("go-light"));
+  lights.forEach((light) => light.classList.add("go-light"));
   playBeep(1150, 180);
   hostStatus.textContent = "tap now";
 });
@@ -509,8 +564,16 @@ socket.on("reaction-summary", (summary) => {
 });
 
 socket.on("race-finished", (payload) => {
-  const winnerName = payload.winnerName || payload.winner || "winner";
-  winnerBanner.textContent = `${winnerName} wins`;
+  if (selectedMode === "singleplayer") {
+    winnerBanner.textContent =
+      payload.winner === "False start"
+        ? "false start"
+        : `${payload.winnerName} finished`;
+  } else {
+    const winnerName = payload.winnerName || payload.winner || "winner";
+    winnerBanner.textContent = `${winnerName} wins`;
+  }
+
   hostStatus.textContent = "race finished";
   celebrateWinner();
 });

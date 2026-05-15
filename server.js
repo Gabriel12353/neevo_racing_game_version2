@@ -19,6 +19,67 @@ app.get("/api/parts", (req, res) => {
   res.json(CAR_PARTS);
 });
 
+const SINGLEPLAYER_PRESETS = [
+  {
+    id: "regionals",
+    name: "Regionals Car",
+    totalMass: 59.0,
+    totalCd: 0.510,
+    image: "/assets/cars/orange/car1.png",
+    colorClass: "preset-regionals",
+    carFamily: 1
+  },
+  {
+    id: "nationals",
+    name: "Nationals Car",
+    totalMass: 48.0,
+    totalCd: 0.400,
+    image: "/assets/cars/white/car1.png",
+    colorClass: "preset-nationals",
+    carFamily: 1
+  },
+  {
+    id: "solar",
+    name: "Neevo Solar",
+    totalMass: 50.4,
+    totalCd: 0.424,
+    image: "/assets/cars/white/car1.png",
+    colorClass: "preset-yellow",
+    carFamily: 1
+  },
+  {
+    id: "crimson",
+    name: "Neevo Crimson",
+    totalMass: 51.0,
+    totalCd: 0.432,
+    image: "/assets/cars/white/car1.png",
+    colorClass: "preset-red",
+    carFamily: 1
+  },
+  {
+    id: "pulse",
+    name: "Neevo Pulse",
+    totalMass: 49.8,
+    totalCd: 0.416,
+    image: "/assets/cars/white/car1.png",
+    colorClass: "preset-green",
+    carFamily: 1
+  },
+  {
+    id: "velocity",
+    name: "Neevo Velocity",
+    totalMass: 50.8,
+    totalCd: 0.428,
+    image: "/assets/cars/white/car1.png",
+    colorClass: "preset-blue",
+    carFamily: 1
+  }
+];
+
+app.get("/api/presets", (req, res) => {
+  res.json(SINGLEPLAYER_PRESETS);
+});
+
 function createSessionId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -38,6 +99,7 @@ let players = {
   player2: createPlayerState()
 };
 
+let currentMode = null;
 let raceStarted = false;
 let raceFinished = false;
 let raceArmed = false;
@@ -46,6 +108,7 @@ let currentSessionId = createSessionId();
 function getPublicState() {
   return {
     sessionId: currentSessionId,
+    mode: currentMode,
     player1: {
       ready: players.player1.ready,
       build: players.player1.build,
@@ -56,7 +119,9 @@ function getPublicState() {
       build: players.player2.build,
       name: players.player2.name
     },
-    bothReady: players.player1.ready && players.player2.ready
+    bothReady: currentMode === "singleplayer"
+      ? players.player1.ready
+      : players.player1.ready && players.player2.ready
   };
 }
 
@@ -72,11 +137,23 @@ function resetRaceOnly() {
   players.player2.result = null;
 }
 
+function resetPlayersKeepMode() {
+  players = {
+    player1: createPlayerState(),
+    player2: createPlayerState()
+  };
+  raceStarted = false;
+  raceFinished = false;
+  raceArmed = false;
+  currentSessionId = createSessionId();
+}
+
 function fullClearGame() {
   players = {
     player1: createPlayerState(),
     player2: createPlayerState()
   };
+  currentMode = null;
   raceStarted = false;
   raceFinished = false;
   raceArmed = false;
@@ -148,6 +225,13 @@ function getWinner(summary) {
   const p1 = summary.player1;
   const p2 = summary.player2;
 
+  if (currentMode === "singleplayer") {
+    if (!p1) return "No result";
+    if (p1.type === "false-start") return "False start";
+    if (p1.type === "valid") return "Player 1";
+    return "No result";
+  }
+
   if (!p1 && !p2) return "No result";
 
   if (p1 && p1.type === "false-start" && p2 && p2.type === "false-start") {
@@ -176,7 +260,12 @@ function getWinner(summary) {
 
 function maybeFinishRace() {
   if (raceFinished) return;
-  if (!players.player1.result || !players.player2.result) return;
+
+  if (currentMode === "singleplayer") {
+    if (!players.player1.result) return;
+  } else {
+    if (!players.player1.result || !players.player2.result) return;
+  }
 
   raceFinished = true;
   raceStarted = false;
@@ -184,12 +273,15 @@ function maybeFinishRace() {
 
   const summary = {
     player1: buildScoredResult("player1"),
-    player2: buildScoredResult("player2")
+    player2: currentMode === "multiplayer" ? buildScoredResult("player2") : null,
+    mode: currentMode
   };
 
   summary.winner = getWinner(summary);
   summary.winnerName =
-    summary.winner === "Player 1"
+    currentMode === "singleplayer"
+      ? players.player1.name || "player"
+      : summary.winner === "Player 1"
       ? players.player1.name || "player 1"
       : summary.winner === "Player 2"
       ? players.player2.name || "player 2"
@@ -200,7 +292,8 @@ function maybeFinishRace() {
   io.emit("reaction-summary", summary);
   io.emit("race-finished", {
     winner: summary.winner,
-    winnerName: summary.winnerName
+    winnerName: summary.winnerName,
+    mode: currentMode
   });
 }
 
@@ -208,23 +301,51 @@ function isValidSession(sessionId) {
   return typeof sessionId === "string" && sessionId === currentSessionId;
 }
 
+function buildSingleplayerPreset(presetId) {
+  const preset = SINGLEPLAYER_PRESETS.find((item) => item.id === presetId);
+  if (!preset) return null;
+
+  return {
+    mode: "singleplayer",
+    presetId: preset.id,
+    presetName: preset.name,
+    totalMass: preset.totalMass,
+    totalCd: preset.totalCd,
+    image: preset.image,
+    colorClass: preset.colorClass,
+    carFamily: preset.carFamily
+  };
+}
+
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id, "| session:", currentSessionId);
   socket.emit("state-sync", getPublicState());
+
+  socket.on("set-mode", (payload) => {
+    const mode = payload?.mode;
+
+    if (mode !== "multiplayer" && mode !== "singleplayer") return;
+
+    currentMode = mode;
+    resetPlayersKeepMode();
+
+    io.emit("session-cleared", { sessionId: currentSessionId, mode: currentMode });
+    emitStateSync();
+
+    console.log("Mode set:", currentMode, "| new session:", currentSessionId);
+  });
 
   socket.on("join", (payload) => {
     const role = payload?.role;
     const name = payload?.name || "";
     const sessionId = payload?.sessionId;
 
-    console.log("join attempt", {
-      role,
-      name,
-      incomingSession: sessionId,
-      currentSession: currentSessionId
-    });
-
     if (!players[role]) return;
+
+    if (currentMode === "singleplayer" && role !== "player1") {
+      socket.emit("session-invalid", { sessionId: currentSessionId });
+      return;
+    }
 
     if (!isValidSession(sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
@@ -234,13 +355,13 @@ io.on("connection", (socket) => {
     players[role].name = String(name).trim().slice(0, 20);
     players[role].socketId = socket.id;
 
-    console.log(`User joined as ${role} with name ${players[role].name}`);
     emitStateSync();
   });
 
   socket.on("save-build", (data) => {
     if (!data || !data.player || !data.selection) return;
     if (!players[data.player]) return;
+    if (currentMode !== "multiplayer") return;
 
     if (!isValidSession(data.sessionId)) {
       socket.emit("session-invalid", { sessionId: currentSessionId });
@@ -254,10 +375,26 @@ io.on("connection", (socket) => {
     players[data.player].result = null;
 
     emitStateSync();
+  });
 
-    console.log(
-      `${data.player} build saved | mass ${build.totalMass}g | Cd ${build.totalCd}`
-    );
+  socket.on("save-singleplayer-car", (data) => {
+    if (!data || !data.player || !data.presetId) return;
+    if (!players[data.player]) return;
+    if (currentMode !== "singleplayer") return;
+
+    if (!isValidSession(data.sessionId)) {
+      socket.emit("session-invalid", { sessionId: currentSessionId });
+      return;
+    }
+
+    const build = buildSingleplayerPreset(data.presetId);
+    if (!build) return;
+
+    players[data.player].build = build;
+    players[data.player].ready = true;
+    players[data.player].result = null;
+
+    emitStateSync();
   });
 
   socket.on("edit-build", (data) => {
@@ -279,15 +416,15 @@ io.on("connection", (socket) => {
 
   socket.on("clear-game", () => {
     fullClearGame();
-    io.emit("session-cleared", { sessionId: currentSessionId });
+    io.emit("session-cleared", { sessionId: currentSessionId, mode: currentMode });
     emitStateSync();
-    console.log("game cleared | new session:", currentSessionId);
   });
 
   socket.on("start-race", () => {
-    if (!(players.player1.ready && players.player2.ready)) {
-      console.log("Cannot start race. Both players are not ready.");
-      return;
+    if (currentMode === "singleplayer") {
+      if (!players.player1.ready) return;
+    } else {
+      if (!(players.player1.ready && players.player2.ready)) return;
     }
 
     resetRaceOnly();
@@ -296,6 +433,8 @@ io.on("connection", (socket) => {
 
     const lightStep = 1000;
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
+
+    io.emit("race-started");
 
     setTimeout(() => io.emit("light-step", 1), lightStep * 1);
     setTimeout(() => io.emit("light-step", 2), lightStep * 2);
@@ -307,8 +446,6 @@ io.on("connection", (socket) => {
       if (!raceArmed || raceFinished) return;
       raceStarted = true;
       io.emit("lights-out");
-      io.emit("race-started");
-      console.log("LIGHTS OUT");
     }, lightStep * 5 + randomDelay);
   });
 
@@ -333,7 +470,6 @@ io.on("connection", (socket) => {
         reactionTime: null
       };
 
-      console.log(`${data.player} false start`);
       maybeFinishRace();
       return;
     }
@@ -346,7 +482,6 @@ io.on("connection", (socket) => {
         reactionTime: data.reactionTime
       };
 
-      console.log(`${data.player} reaction ${data.reactionTime.toFixed(3)}s`);
       maybeFinishRace();
     }
   });
