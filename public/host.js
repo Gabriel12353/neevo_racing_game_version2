@@ -86,19 +86,25 @@ function renderQrCodes() {
     return;
   }
 
-  player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
-  player2Qr.innerHTML = '<canvas id="qrCanvas2"></canvas>';
+  if (selectedMode === "multiplayer") {
+    player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
+    player2Qr.innerHTML = '<canvas id="qrCanvas2"></canvas>';
 
-  const qrCanvas1 = document.getElementById("qrCanvas1");
-  const qrCanvas2 = document.getElementById("qrCanvas2");
+    const qrCanvas1 = document.getElementById("qrCanvas1");
+    const qrCanvas2 = document.getElementById("qrCanvas2");
 
-  QRCode.toCanvas(qrCanvas1, buildJoinUrl("player1"), { width: 140 }, function (err) {
-    if (err) console.error("QR1 failed", err);
-  });
+    QRCode.toCanvas(qrCanvas1, buildJoinUrl("player1"), { width: 140 }, function (err) {
+      if (err) console.error("QR1 failed", err);
+    });
 
-  QRCode.toCanvas(qrCanvas2, buildJoinUrl("player2"), { width: 140 }, function (err) {
-    if (err) console.error("QR2 failed", err);
-  });
+    QRCode.toCanvas(qrCanvas2, buildJoinUrl("player2"), { width: 140 }, function (err) {
+      if (err) console.error("QR2 failed", err);
+    });
+    return;
+  }
+
+  player1Qr.innerHTML = "";
+  player2Qr.innerHTML = "";
 }
 
 function showModeOverlay() {
@@ -114,12 +120,10 @@ function hideModeOverlay() {
 
 function setMode(mode) {
   selectedMode = mode;
-  socket.emit("set-mode", { mode });
-
   modeOverlayNote.textContent = mode === "multiplayer" ? "multiplayer selected" : "singleplayer selected";
-
   hideModeOverlay();
   clearBtn.disabled = false;
+  socket.emit("set-mode", { mode });
 }
 
 multiplayerModeBtn.addEventListener("click", () => {
@@ -160,7 +164,7 @@ function resetRaceMetrics() {
 }
 
 function clearLights() {
-  lights.forEach(light => {
+  lights.forEach((light) => {
     light.classList.remove("active-light", "go-light");
   });
 }
@@ -195,15 +199,12 @@ function getPlayerBuild(playerKey) {
 
   if (!front || !body || !rear) return null;
 
-  const totalMass = front.mass + body.mass + rear.mass;
-  const totalCd = Number((front.cd + body.cd + rear.cd).toFixed(3));
-
   return {
     frontIndex: build.frontIndex,
     bodyIndex: build.bodyIndex,
     rearIndex: build.rearIndex,
-    totalMass,
-    totalCd
+    totalMass: front.mass + body.mass + rear.mass,
+    totalCd: Number((front.cd + body.cd + rear.cd).toFixed(3))
   };
 }
 
@@ -218,7 +219,6 @@ function chooseCarFamily(buildInfo) {
   if (f === b) return f;
   if (b === r) return b;
   if (f === r) return f;
-
   return b;
 }
 
@@ -231,7 +231,6 @@ function getHostCarPath(playerKey, buildInfo) {
 
   const family = chooseCarFamily(buildInfo);
   const color = playerKey === "player2" ? "white" : "orange";
-
   return `/assets/cars/${color}/car${family}.png`;
 }
 

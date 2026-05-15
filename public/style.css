@@ -837,3 +837,24 @@ body {
 .preset-nationals {
   filter: none;
 }
+
+.menu-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 10000;
+  width: 42px;
+  height: 42px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(241, 122, 33, 0.95);
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+.menu-btn:hover {
+  background: #ff9243;
+}
