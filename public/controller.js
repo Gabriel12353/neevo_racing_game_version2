@@ -4,6 +4,7 @@ const controllerTitle = document.getElementById("controllerTitle");
 const controllerStatus = document.getElementById("controllerStatus");
 const nameEntryPanel = document.getElementById("nameEntryPanel");
 const playerNameInput = document.getElementById("playerNameInput");
+const playerEmailInput = document.getElementById("playerEmailInput");
 const joinWithNameBtn = document.getElementById("joinWithNameBtn");
 const builderPanel = document.getElementById("builderPanel");
 const singlePresetPanel = document.getElementById("singlePresetPanel");
@@ -52,6 +53,7 @@ let sessionId = params.get("session") || null;
 
 let currentPlayer = null;
 let currentName = "";
+let currentEmail = "";
 let partsData = null;
 let presetsData = [];
 let currentMode = null;
@@ -210,8 +212,10 @@ function showExpiredMessage() {
   readyPanel.style.display = "none";
   phoneWinnerOverlay.style.display = "none";
   playerNameInput.value = "";
+  playerEmailInput.value = "";
   currentPlayer = null;
   currentName = "";
+  currentEmail = "";
   bothPlayersReady = false;
   raceArmed = false;
   raceStarted = false;
@@ -277,8 +281,17 @@ function showReadyPanel() {
   readyPanel.style.display = "block";
 }
 
+function updateEmailFieldVisibility() {
+  if (currentMode === "singleplayer") {
+    playerEmailInput.style.display = "none";
+  } else {
+    playerEmailInput.style.display = "block";
+  }
+}
+
 function joinPlayerWithName() {
   const enteredName = playerNameInput.value.trim();
+  const enteredEmail = playerEmailInput.value.trim();
 
   if (!enteredName) {
     controllerStatus.textContent = "enter your name first";
@@ -292,10 +305,12 @@ function joinPlayerWithName() {
 
   currentPlayer = qrPlayer;
   currentName = enteredName;
+  currentEmail = currentMode === "singleplayer" ? "" : enteredEmail;
 
   socket.emit("join", {
     role: currentPlayer,
     name: currentName,
+    email: currentEmail,
     sessionId
   });
 
@@ -515,6 +530,12 @@ playerNameInput.addEventListener("keydown", (e) => {
   }
 });
 
+playerEmailInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    joinPlayerWithName();
+  }
+});
+
 document.getElementById("frontPrevBtn").addEventListener("click", () => cyclePart("front", -1));
 document.getElementById("frontNextBtn").addEventListener("click", () => cyclePart("front", 1));
 document.getElementById("bodyPrevBtn").addEventListener("click", () => cyclePart("body", -1));
@@ -649,6 +670,7 @@ socket.on("state-sync", (state) => {
 
   currentMode = state.mode;
   bothPlayersReady = !!state.bothReady;
+  updateEmailFieldVisibility();
 
   if (!currentPlayer) {
     updateTapAvailability();
@@ -712,10 +734,11 @@ socket.on("session-invalid", () => {
   showExpiredMessage();
 });
 
-socket.on("session-cleared", (payload) => {
-  if (payload?.sessionId) {
-    sessionId = null;
+socket.on("session-cleared", () => {
+  if (currentMode === "singleplayer") {
+    playerEmailInput.value = "";
   }
+  sessionId = null;
   showExpiredMessage();
 });
 

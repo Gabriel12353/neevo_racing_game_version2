@@ -11,6 +11,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.json());
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "host.html"));
@@ -62,7 +63,29 @@ function getTopLeaderboard(limit = 20) {
 }
 
 app.get("/api/leaderboard", (req, res) => {
-  res.json(getTopLeaderboard(20));
+  res.json(getTopLeaderboard(500));
+});
+
+app.get("/api/leaderboard-preview", (req, res) => {
+  res.json(getTopLeaderboard(3));
+});
+
+app.delete("/api/leaderboard/:id", (req, res) => {
+  try {
+    const id = req.params.id;
+    const entries = readLeaderboard();
+    const nextEntries = entries.filter((entry) => entry.id !== id);
+
+    if (nextEntries.length === entries.length) {
+      return res.status(404).json({ ok: false, message: "Entry not found" });
+    }
+
+    writeLeaderboard(nextEntries);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to delete leaderboard entry:", error);
+    res.status(500).json({ ok: false, message: "Delete failed" });
+  }
 });
 
 const SINGLEPLAYER_PRESETS = [
@@ -136,6 +159,7 @@ function createPlayerState() {
     build: null,
     result: null,
     name: "",
+    email: "",
     socketId: null
   };
 }
@@ -259,6 +283,7 @@ function buildScoredResult(playerKey) {
     return {
       type: "false-start",
       name: player.name,
+      email: player.email,
       build: player.build,
       reactionTime: null,
       trackTime: null,
@@ -278,6 +303,7 @@ function buildScoredResult(playerKey) {
   return {
     type: "valid",
     name: player.name,
+    email: player.email,
     build: player.build,
     reactionTime: result.reactionTime,
     trackTime,
@@ -326,27 +352,34 @@ function getWinner(summary) {
   return "No result";
 }
 
-function storeMultiplayerAttempts(summary) {
+function storeMultiplayerWinner(summary) {
   if (currentMode !== "multiplayer") return;
 
-  const maybeStore = (playerLabel, result) => {
-    if (!result || result.type !== "valid") return;
+  let winnerResult = null;
+  let winnerLabel = null;
 
-    addLeaderboardEntry({
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      player: playerLabel,
-      name: result.name || playerLabel,
-      totalTime: Number(result.totalTime.toFixed(3)),
-      reactionTime: Number(result.reactionTime.toFixed(3)),
-      trackTime: Number(result.trackTime.toFixed(3)),
-      mass: Number(result.build.totalMass.toFixed(1)),
-      cd: Number(result.build.totalCd.toFixed(3)),
-      createdAt: new Date().toISOString()
-    });
-  };
+  if (summary.winner === "Player 1" && summary.player1?.type === "valid") {
+    winnerResult = summary.player1;
+    winnerLabel = "Player 1";
+  } else if (summary.winner === "Player 2" && summary.player2?.type === "valid") {
+    winnerResult = summary.player2;
+    winnerLabel = "Player 2";
+  }
 
-  maybeStore("Player 1", summary.player1);
-  maybeStore("Player 2", summary.player2);
+  if (!winnerResult) return;
+
+  addLeaderboardEntry({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    player: winnerLabel,
+    name: winnerResult.name || winnerLabel,
+    email: winnerResult.email || "",
+    totalTime: Number(winnerResult.totalTime.toFixed(3)),
+    reactionTime: Number(winnerResult.reactionTime.toFixed(3)),
+    trackTime: Number(winnerResult.trackTime.toFixed(3)),
+    mass: Number(winnerResult.build.totalMass.toFixed(1)),
+    cd: Number(winnerResult.build.totalCd.toFixed(3)),
+    createdAt: new Date().toISOString()
+  });
 }
 
 function maybeFinishRace() {
@@ -381,7 +414,7 @@ function maybeFinishRace() {
       ? "tie"
       : "no result";
 
-  storeMultiplayerAttempts(summary);
+  storeMultiplayerWinner(summary);
 
   io.emit("reaction-summary", summary);
   io.emit("race-finished", {
@@ -433,6 +466,7 @@ io.on("connection", (socket) => {
   socket.on("join", (payload) => {
     const role = payload?.role;
     const name = payload?.name || "";
+    const email = payload?.email || "";
     const sessionId = payload?.sessionId;
 
     if (!players[role]) return;
@@ -448,6 +482,7 @@ io.on("connection", (socket) => {
     }
 
     players[role].name = String(name).trim().slice(0, 20);
+    players[role].email = String(email).trim().slice(0, 120);
     players[role].socketId = socket.id;
 
     emitStateSync();
