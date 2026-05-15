@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>neevo reaction race</title>
-  <link rel="stylesheet" href="style.css?v=12" />
+  <link rel="stylesheet" href="style.css?v=13" />
 </head>
 <body class="host-page">
   <button id="menuBtn" class="menu-btn" title="back to menu">☰</button>
@@ -20,14 +20,28 @@
     pit display
   </a>
 
-  <div class="leaderboard-icon-wrap">
-    <button class="leaderboard-icon-btn" id="leaderboardIconBtn" title="leaderboard">🏆</button>
-    <div class="leaderboard-hover-card">
-      <div class="leaderboard-hover-title">top 3</div>
-      <div id="leaderboardHoverList" class="leaderboard-hover-list">
-        <div class="leaderboard-empty">no results yet</div>
+  <div class="top-right-tools">
+    <div class="leaderboard-icon-wrap">
+      <button class="leaderboard-icon-btn" id="leaderboardIconBtn" title="leaderboard">★</button>
+      <div class="leaderboard-hover-card">
+        <div class="leaderboard-hover-title">top 3</div>
+        <div id="leaderboardHoverList" class="leaderboard-hover-list">
+          <div class="leaderboard-empty">no results yet</div>
+        </div>
+        <a href="/leaderboard.html?v=13" class="leaderboard-open-link">open full leaderboard</a>
       </div>
-      <a href="/leaderboard.html?v=12" class="leaderboard-back-btn" style="margin-top:10px;">open full leaderboard</a>
+    </div>
+
+    <div class="host-help-wrap">
+      <div class="host-help-icon">!</div>
+      <div class="host-help-tooltip">
+        <h3>Physics info</h3>
+        <p><strong>Total time = reaction time + car finish time.</strong></p>
+        <p><strong>Mass:</strong> lighter cars usually accelerate faster.</p>
+        <p><strong>Cd:</strong> lower Cd means less aerodynamic drag at high speed.</p>
+        <p><strong>Tradeoff:</strong> some cars are lighter but less aerodynamic, others are heavier but cleaner through the air.</p>
+        <p><strong>Winner:</strong> fastest total time wins.</p>
+      </div>
     </div>
   </div>
 
@@ -43,18 +57,6 @@
       </div>
 
       <p id="modeOverlayNote" class="mode-note">choose a mode</p>
-    </div>
-  </div>
-
-  <div class="host-help-wrap">
-    <div class="host-help-icon">!</div>
-    <div class="host-help-tooltip">
-      <h3>Physics info</h3>
-      <p><strong>Total time = reaction time + car finish time.</strong></p>
-      <p><strong>Mass:</strong> lighter cars usually accelerate faster.</p>
-      <p><strong>Cd:</strong> lower Cd means less aerodynamic drag at high speed.</p>
-      <p><strong>Tradeoff:</strong> some cars are lighter but less aerodynamic, others are heavier but cleaner through the air.</p>
-      <p><strong>Winner:</strong> fastest total time wins.</p>
     </div>
   </div>
 
@@ -162,6 +164,6 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  <script src="host.js?v=12"></script>
+  <script src="host.js?v=13"></script>
 </body>
 </html>
