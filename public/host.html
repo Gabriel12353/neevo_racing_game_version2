@@ -1,164 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>neevo reaction race</title>
-  <link rel="stylesheet" href="style.css?v=12" />
-</head>
-<body class="host-page">
-  <button id="menuBtn" class="menu-btn" title="back to menu">☰</button>
+Also, in public/host.html, add this block under the red pit display button and above the mode overlay:
 
-  <a
-    id="magicPathBtn"
-    class="magicpath-btn"
-    href="https://designs.magicpath.ai/v1/proud-wood-8815"
-    target="_blank"
-    rel="noopener noreferrer"
-    title="open pit display"
-  >
-    pit display
-  </a>
-
-  <div id="modeOverlay" class="mode-overlay">
-    <div class="mode-card">
-      <img src="NeevoLogo.png" alt="Neevo" class="mode-logo" />
-      <h1 class="mode-title">choose mode</h1>
-      <p class="mode-subtitle">select how you want to play</p>
-
-      <div class="mode-buttons">
-        <button id="multiplayerModeBtn" class="mode-btn mode-btn-primary">multiplayer</button>
-        <button id="singleplayerModeBtn" class="mode-btn mode-btn-secondary">singleplayer</button>
+  <div class="leaderboard-icon-wrap">
+    <button class="leaderboard-icon-btn" id="leaderboardIconBtn" title="leaderboard">🏆</button>
+    <div class="leaderboard-hover-card">
+      <div class="leaderboard-hover-title">top 3</div>
+      <div id="leaderboardHoverList" class="leaderboard-hover-list">
+        <div class="leaderboard-empty">no results yet</div>
       </div>
-
-      <p id="modeOverlayNote" class="mode-note">choose a mode</p>
+      <a href="/leaderboard.html?v=12" class="leaderboard-back-btn" style="margin-top:10px;">open full leaderboard</a>
     </div>
   </div>
 
-  <div class="host-help-wrap">
-    <div class="host-help-icon">!</div>
-    <div class="host-help-tooltip">
-      <h3>Physics info</h3>
-      <p><strong>Total time = reaction time + car finish time.</strong></p>
-      <p><strong>Mass:</strong> lighter cars usually accelerate faster.</p>
-      <p><strong>Cd:</strong> lower Cd means less aerodynamic drag at high speed.</p>
-      <p><strong>Tradeoff:</strong> some cars are lighter but less aerodynamic, others are heavier but cleaner through the air.</p>
-      <p><strong>Winner:</strong> fastest total time wins.</p>
-    </div>
-  </div>
+And in public/host.js, add this near the top with the other DOM elements:
 
-  <div class="host-wrapper">
-    <aside class="player-panel" id="player1Panel">
-      <div class="ready-pill" id="player1Ready">not ready</div>
-      <div class="player-name" id="player1Name">player 1</div>
+const leaderboardHoverList = document.getElementById("leaderboardHoverList");
 
-      <div class="preview-car-wrap">
-        <img id="player1PreviewCar" class="full-car-preview" alt="player 1 car" />
-      </div>
+Then add these functions:
 
-      <div class="mini-build-line" id="player1MiniBuild">mass / Cd: waiting</div>
+async function loadLeaderboardPreview() {
+  try {
+    const response = await fetch("/api/leaderboard-preview");
+    if (!response.ok) return;
+    const rows = await response.json();
+    renderLeaderboardPreview(rows);
+  } catch (error) {
+    console.error("failed to load leaderboard preview", error);
+  }
+}
 
-      <div class="qr-box" id="player1Qr"></div>
-      <div class="scan-text">scan to join</div>
+function renderLeaderboardPreview(rows) {
+  if (!leaderboardHoverList) return;
 
-      <div class="stat-card">
-        <div class="stat-label">race time</div>
-        <div class="stat-value" id="player1RaceTime">waiting</div>
-      </div>
+  if (!rows || !rows.length) {
+    leaderboardHoverList.innerHTML = '<div class="leaderboard-empty">no results yet</div>';
+    return;
+  }
 
-      <div class="stat-card">
-        <div class="stat-label">reaction</div>
-        <div class="stat-value" id="player1Reaction">waiting</div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">finish time</div>
-        <div class="stat-value" id="player1Finish">waiting</div>
-      </div>
-    </aside>
-
-    <main class="host-center">
-      <img src="NeevoLogo.png" alt="Neevo" class="neevo-logo" />
-
-      <h1 class="game-title">reaction race</h1>
-      <p class="game-subtitle">build your car. wait for lights out. fastest total time wins.</p>
-
-      <div class="lights-row">
-        <div class="race-light" id="light1"></div>
-        <div class="race-light" id="light2"></div>
-        <div class="race-light" id="light3"></div>
-        <div class="race-light" id="light4"></div>
-        <div class="race-light" id="light5"></div>
-      </div>
-
-      <div class="host-status" id="hostStatus">waiting for both players to build</div>
-      <div class="winner-banner" id="winnerBanner">winner: waiting</div>
-
-      <div class="tracks-wrap">
-        <div class="track-lane" id="lane1">
-          <div class="lane-label" id="lane1Label">player 1</div>
-          <div class="finish-line"></div>
-          <div class="track-car-wrap" id="trackCarWrap1">
-            <img id="trackCar1" class="full-track-car" alt="player 1 track car" />
-          </div>
+  leaderboardHoverList.innerHTML = rows
+    .map((row, index) => {
+      return `
+        <div class="leaderboard-hover-row">
+          <div class="leaderboard-hover-rank">#${index + 1}</div>
+          <div class="leaderboard-hover-name">${escapeHtml(row.name || "player")}</div>
+          <div class="leaderboard-hover-time">${Number(row.totalTime).toFixed(3)}s</div>
         </div>
+      `;
+    })
+    .join("");
+}
 
-        <div class="track-lane" id="lane2">
-          <div class="lane-label" id="lane2Label">player 2</div>
-          <div class="finish-line"></div>
-          <div class="track-car-wrap" id="trackCarWrap2">
-            <img id="trackCar2" class="full-track-car" alt="player 2 track car" />
-          </div>
-        </div>
-      </div>
+Then call this near the bottom:
 
-      <div class="host-buttons">
-        <button id="startRaceBtn" class="main-btn" disabled>start race</button>
-        <button id="clearBtn" class="main-btn secondary-btn">clear</button>
-      </div>
+loadLeaderboardPreview();
 
-      <section class="leaderboard-card">
-        <div class="leaderboard-title">leaderboard</div>
-        <div class="leaderboard-subtitle">multiplayer best times</div>
-        <div id="leaderboardList" class="leaderboard-list">
-          <div class="leaderboard-empty">no results yet</div>
-        </div>
-      </section>
-    </main>
+And inside the existing multiplayer part of socket.on("race-finished"..., after await loadLeaderboard();, add:
 
-    <aside class="player-panel" id="player2Panel">
-      <div class="ready-pill" id="player2Ready">not ready</div>
-      <div class="player-name" id="player2Name">player 2</div>
-
-      <div class="preview-car-wrap">
-        <img id="player2PreviewCar" class="full-car-preview" alt="player 2 car" />
-      </div>
-
-      <div class="mini-build-line" id="player2MiniBuild">mass / Cd: waiting</div>
-
-      <div class="qr-box" id="player2Qr"></div>
-      <div class="scan-text">scan to join</div>
-
-      <div class="stat-card">
-        <div class="stat-label">race time</div>
-        <div class="stat-value" id="player2RaceTime">waiting</div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">reaction</div>
-        <div class="stat-value" id="player2Reaction">waiting</div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-label">finish time</div>
-        <div class="stat-value" id="player2Finish">waiting</div>
-      </div>
-    </aside>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
-  <script src="host.js?v=12"></script>
-</body>
-</html>
+    await loadLeaderboardPreview();
