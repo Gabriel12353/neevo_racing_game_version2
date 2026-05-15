@@ -119,9 +119,10 @@ function getPublicState() {
       build: players.player2.build,
       name: players.player2.name
     },
-    bothReady: currentMode === "singleplayer"
-      ? players.player1.ready
-      : players.player1.ready && players.player2.ready
+    bothReady:
+      currentMode === "singleplayer"
+        ? players.player1.ready
+        : players.player1.ready && players.player2.ready
   };
 }
 
@@ -138,6 +139,17 @@ function resetRaceOnly() {
 }
 
 function resetPlayersKeepMode() {
+  players = {
+    player1: createPlayerState(),
+    player2: createPlayerState()
+  };
+  raceStarted = false;
+  raceFinished = false;
+  raceArmed = false;
+  currentSessionId = createSessionId();
+}
+
+function clearGameKeepMode() {
   players = {
     player1: createPlayerState(),
     player2: createPlayerState()
@@ -329,7 +341,11 @@ io.on("connection", (socket) => {
     currentMode = mode;
     resetPlayersKeepMode();
 
-    io.emit("session-cleared", { sessionId: currentSessionId, mode: currentMode });
+    io.emit("session-cleared", {
+      sessionId: currentSessionId,
+      mode: currentMode,
+      keepMode: true
+    });
     emitStateSync();
 
     console.log("Mode set:", currentMode, "| new session:", currentSessionId);
@@ -415,8 +431,22 @@ io.on("connection", (socket) => {
   });
 
   socket.on("clear-game", () => {
+    clearGameKeepMode();
+    io.emit("session-cleared", {
+      sessionId: currentSessionId,
+      mode: currentMode,
+      keepMode: true
+    });
+    emitStateSync();
+  });
+
+  socket.on("reset-all", () => {
     fullClearGame();
-    io.emit("session-cleared", { sessionId: currentSessionId, mode: currentMode });
+    io.emit("session-cleared", {
+      sessionId: currentSessionId,
+      mode: currentMode,
+      keepMode: false
+    });
     emitStateSync();
   });
 
@@ -430,23 +460,22 @@ io.on("connection", (socket) => {
     resetRaceOnly();
     raceArmed = true;
     io.emit("reset-race");
+    io.emit("race-started");
 
     const lightStep = 1000;
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
-    io.emit("race-started");
-
-    setTimeout(() => io.emit("light-step", 1), lightStep * 1);
-    setTimeout(() => io.emit("light-step", 2), lightStep * 2);
-    setTimeout(() => io.emit("light-step", 3), lightStep * 3);
-    setTimeout(() => io.emit("light-step", 4), lightStep * 4);
-    setTimeout(() => io.emit("light-step", 5), lightStep * 5);
+    setTimeout(() => io.emit("light-step", 1), 0);
+    setTimeout(() => io.emit("light-step", 2), lightStep * 1);
+    setTimeout(() => io.emit("light-step", 3), lightStep * 2);
+    setTimeout(() => io.emit("light-step", 4), lightStep * 3);
+    setTimeout(() => io.emit("light-step", 5), lightStep * 4);
 
     setTimeout(() => {
       if (!raceArmed || raceFinished) return;
       raceStarted = true;
       io.emit("lights-out");
-    }, lightStep * 5 + randomDelay);
+    }, lightStep * 4 + randomDelay);
   });
 
   socket.on("reaction-result", (data) => {

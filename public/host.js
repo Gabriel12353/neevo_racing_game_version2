@@ -116,11 +116,7 @@ function setMode(mode) {
   selectedMode = mode;
   socket.emit("set-mode", { mode });
 
-  if (mode === "multiplayer") {
-    modeOverlayNote.textContent = "multiplayer selected";
-  } else {
-    modeOverlayNote.textContent = "singleplayer selected";
-  }
+  modeOverlayNote.textContent = mode === "multiplayer" ? "multiplayer selected" : "singleplayer selected";
 
   hideModeOverlay();
   clearBtn.disabled = false;
@@ -293,7 +289,8 @@ function renderPlayerCard(playerKey) {
 }
 
 function renderTrackCars() {
-  lane1Label.textContent = selectedMode === "singleplayer" ? (getPlayerName("player1") || "player") : getPlayerName("player1");
+  lane1Label.textContent =
+    selectedMode === "singleplayer" ? (getPlayerName("player1") || "player") : getPlayerName("player1");
   lane2Label.textContent = getPlayerName("player2");
   setTrackProgress("player1", 0);
   setTrackProgress("player2", 0);
@@ -499,8 +496,6 @@ startRaceBtn.addEventListener("click", () => {
 
 clearBtn.addEventListener("click", () => {
   socket.emit("clear-game");
-  showModeOverlay();
-  applyModeLayout();
 });
 
 socket.on("connect", () => {
@@ -514,6 +509,12 @@ socket.on("state-sync", (state) => {
     currentSessionId = state.sessionId;
   }
 
+  if (state && state.mode) {
+    selectedMode = state.mode;
+    hideModeOverlay();
+    clearBtn.disabled = false;
+  }
+
   renderQrCodes();
   renderAll();
 });
@@ -523,12 +524,21 @@ socket.on("session-cleared", (payload) => {
     currentSessionId = payload.sessionId;
   }
 
+  if (payload?.keepMode) {
+    selectedMode = payload.mode || selectedMode;
+    hideModeOverlay();
+    clearBtn.disabled = false;
+  } else {
+    selectedMode = null;
+    showModeOverlay();
+  }
+
   currentState = {
     player1: {},
     player2: {},
     bothReady: false,
     sessionId: currentSessionId,
-    mode: payload?.mode || null
+    mode: selectedMode
   };
 
   renderQrCodes();
