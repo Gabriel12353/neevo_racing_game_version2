@@ -465,17 +465,17 @@ io.on("connection", (socket) => {
     const lightStep = 1000;
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
-    setTimeout(() => io.emit("light-step", 1), 0);
-    setTimeout(() => io.emit("light-step", 2), lightStep * 1);
-    setTimeout(() => io.emit("light-step", 3), lightStep * 2);
-    setTimeout(() => io.emit("light-step", 4), lightStep * 3);
-    setTimeout(() => io.emit("light-step", 5), lightStep * 4);
+    setTimeout(() => io.emit("light-step", 1), lightStep * 1);
+    setTimeout(() => io.emit("light-step", 2), lightStep * 2);
+    setTimeout(() => io.emit("light-step", 3), lightStep * 3);
+    setTimeout(() => io.emit("light-step", 4), lightStep * 4);
+    setTimeout(() => io.emit("light-step", 5), lightStep * 5);
 
     setTimeout(() => {
       if (!raceArmed || raceFinished) return;
       raceStarted = true;
       io.emit("lights-out");
-    }, lightStep * 4 + randomDelay);
+    }, lightStep * 5 + randomDelay);
   });
 
   socket.on("reaction-result", (data) => {
