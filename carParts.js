@@ -3,29 +3,29 @@ const CAR_PARTS = {
     {
       id: 1,
       name: "front wing 1",
-      mass: 11.0,
-      cd: 0.168,
+      mass: 8.2,
+      cd: 0.170,
       image: "/assets/parts/front/front1.png"
     },
     {
       id: 2,
       name: "front wing 2",
-      mass: 11.6,
-      cd: 0.154,
+      mass: 8.8,
+      cd: 0.160,
       image: "/assets/parts/front/front2.png"
     },
     {
       id: 3,
       name: "front wing 3",
-      mass: 12.2,
-      cd: 0.160,
+      mass: 9.4,
+      cd: 0.165,
       image: "/assets/parts/front/front3.png"
     },
     {
       id: 4,
       name: "front wing 4",
-      mass: 12.8,
-      cd: 0.149,
+      mass: 10.2,
+      cd: 0.154,
       image: "/assets/parts/front/front4.png"
     }
   ],
@@ -34,29 +34,29 @@ const CAR_PARTS = {
     {
       id: 1,
       name: "body 1",
-      mass: 23.4,
-      cd: 0.206,
+      mass: 24.0,
+      cd: 0.205,
       image: "/assets/parts/body/body1.png"
     },
     {
       id: 2,
       name: "body 2",
-      mass: 24.1,
-      cd: 0.191,
+      mass: 24.7,
+      cd: 0.194,
       image: "/assets/parts/body/body2.png"
     },
     {
       id: 3,
       name: "body 3",
-      mass: 24.8,
-      cd: 0.198,
+      mass: 25.3,
+      cd: 0.199,
       image: "/assets/parts/body/body3.png"
     },
     {
       id: 4,
       name: "body 4",
-      mass: 25.3,
-      cd: 0.184,
+      mass: 26.0,
+      cd: 0.186,
       image: "/assets/parts/body/body4.png"
     }
   ],
@@ -65,29 +65,29 @@ const CAR_PARTS = {
     {
       id: 1,
       name: "rear wing 1",
-      mass: 14.2,
-      cd: 0.151,
+      mass: 10.6,
+      cd: 0.152,
       image: "/assets/parts/rear/rear1.png"
     },
     {
       id: 2,
       name: "rear wing 2",
-      mass: 14.8,
-      cd: 0.141,
+      mass: 11.2,
+      cd: 0.143,
       image: "/assets/parts/rear/rear2.png"
     },
     {
       id: 3,
       name: "rear wing 3",
-      mass: 15.4,
-      cd: 0.147,
+      mass: 11.8,
+      cd: 0.148,
       image: "/assets/parts/rear/rear3.png"
     },
     {
       id: 4,
       name: "rear wing 4",
-      mass: 16.0,
-      cd: 0.136,
+      mass: 12.6,
+      cd: 0.138,
       image: "/assets/parts/rear/rear4.png"
     }
   ]
