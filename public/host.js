@@ -579,9 +579,8 @@ socket.on("light-step", (step) => {
 
 socket.on("lights-out", () => {
   clearLights();
-  lights.forEach((light) => light.classList.add("go-light"));
-  playBeep(1150, 180);
   hostStatus.textContent = "tap now";
+  playBeep(1150, 180);
 });
 
 socket.on("reaction-summary", (summary) => {

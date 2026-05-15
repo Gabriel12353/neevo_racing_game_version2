@@ -104,6 +104,12 @@ let raceStarted = false;
 let raceFinished = false;
 let raceArmed = false;
 let currentSessionId = createSessionId();
+let raceTimers = [];
+
+function clearRaceTimers() {
+  raceTimers.forEach((timer) => clearTimeout(timer));
+  raceTimers = [];
+}
 
 function getPublicState() {
   return {
@@ -131,6 +137,7 @@ function emitStateSync() {
 }
 
 function resetRaceOnly() {
+  clearRaceTimers();
   raceStarted = false;
   raceFinished = false;
   raceArmed = false;
@@ -139,6 +146,7 @@ function resetRaceOnly() {
 }
 
 function resetPlayersKeepMode() {
+  clearRaceTimers();
   players = {
     player1: createPlayerState(),
     player2: createPlayerState()
@@ -150,6 +158,7 @@ function resetPlayersKeepMode() {
 }
 
 function clearGameKeepMode() {
+  clearRaceTimers();
   players = {
     player1: createPlayerState(),
     player2: createPlayerState()
@@ -161,6 +170,7 @@ function clearGameKeepMode() {
 }
 
 function fullClearGame() {
+  clearRaceTimers();
   players = {
     player1: createPlayerState(),
     player2: createPlayerState()
@@ -279,6 +289,7 @@ function maybeFinishRace() {
     if (!players.player1.result || !players.player2.result) return;
   }
 
+  clearRaceTimers();
   raceFinished = true;
   raceStarted = false;
   raceArmed = false;
@@ -441,7 +452,7 @@ io.on("connection", (socket) => {
     fullClearGame();
     io.emit("session-cleared", {
       sessionId: currentSessionId,
-      mode: currentMode,
+      mode: null,
       keepMode: false
     });
     emitStateSync();
@@ -455,43 +466,37 @@ io.on("connection", (socket) => {
     }
 
     resetRaceOnly();
+
     raceArmed = true;
+    raceFinished = false;
+    raceStarted = false;
+
     io.emit("reset-race");
     io.emit("race-started");
 
-    const lightStep = 1000;
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
-    setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      io.emit("light-step", 1);
-    }, lightStep * 1);
+    const scheduleStep = (delayMs, stepNumber) => {
+      const timer = setTimeout(() => {
+        if (!raceArmed || raceFinished) return;
+        io.emit("light-step", stepNumber);
+      }, delayMs);
+      raceTimers.push(timer);
+    };
 
-    setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      io.emit("light-step", 2);
-    }, lightStep * 2);
+    scheduleStep(1000, 1);
+    scheduleStep(2000, 2);
+    scheduleStep(3000, 3);
+    scheduleStep(4000, 4);
+    scheduleStep(5000, 5);
 
-    setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      io.emit("light-step", 3);
-    }, lightStep * 3);
-
-    setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      io.emit("light-step", 4);
-    }, lightStep * 4);
-
-    setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      io.emit("light-step", 5);
-    }, lightStep * 5);
-
-    setTimeout(() => {
+    const lightsOutTimer = setTimeout(() => {
       if (!raceArmed || raceFinished) return;
       raceStarted = true;
       io.emit("lights-out");
-    }, lightStep * 5 + randomDelay);
+    }, 5000 + randomDelay);
+
+    raceTimers.push(lightsOutTimer);
   });
 
   socket.on("reaction-result", (data) => {
