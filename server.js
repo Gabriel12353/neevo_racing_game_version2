@@ -335,7 +335,6 @@ io.on("connection", (socket) => {
 
   socket.on("set-mode", (payload) => {
     const mode = payload?.mode;
-
     if (mode !== "multiplayer" && mode !== "singleplayer") return;
 
     currentMode = mode;
@@ -347,8 +346,6 @@ io.on("connection", (socket) => {
       keepMode: true
     });
     emitStateSync();
-
-    console.log("Mode set:", currentMode, "| new session:", currentSessionId);
   });
 
   socket.on("join", (payload) => {
@@ -465,11 +462,30 @@ io.on("connection", (socket) => {
     const lightStep = 1000;
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
-    setTimeout(() => io.emit("light-step", 1), lightStep * 1);
-    setTimeout(() => io.emit("light-step", 2), lightStep * 2);
-    setTimeout(() => io.emit("light-step", 3), lightStep * 3);
-    setTimeout(() => io.emit("light-step", 4), lightStep * 4);
-    setTimeout(() => io.emit("light-step", 5), lightStep * 5);
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      io.emit("light-step", 1);
+    }, lightStep * 1);
+
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      io.emit("light-step", 2);
+    }, lightStep * 2);
+
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      io.emit("light-step", 3);
+    }, lightStep * 3);
+
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      io.emit("light-step", 4);
+    }, lightStep * 4);
+
+    setTimeout(() => {
+      if (!raceArmed || raceFinished) return;
+      io.emit("light-step", 5);
+    }, lightStep * 5);
 
     setTimeout(() => {
       if (!raceArmed || raceFinished) return;
