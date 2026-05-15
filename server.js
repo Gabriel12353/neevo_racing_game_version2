@@ -34,7 +34,7 @@ const SINGLEPLAYER_PRESETS = [
     name: "Nationals Car",
     totalMass: 48.0,
     totalCd: 0.400,
-    image: "/assets/cars/white/car1.png",
+    image: "/assets/cars/orange/car1.png",
     colorClass: "preset-nationals",
     carFamily: 1
   },
