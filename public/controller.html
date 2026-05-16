@@ -4,141 +4,122 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>neevo controller</title>
-  <link rel="stylesheet" href="style.css?v=14" />
+  <link rel="stylesheet" href="style.css?v=23" />
 </head>
 <body class="controller-page">
-  <div class="controller-wrapper">
-    <div class="controller-brand-top">
-      <img src="NeevoLogo.png" alt="Neevo" class="controller-logo-image" />
-    </div>
+  <div class="controller-shell">
+    <header class="controller-header">
+      <img src="NeevoLogo.png" alt="Neevo" class="controller-logo" />
+      <div class="controller-role" id="controllerRoleLabel">player</div>
+      <div class="controller-status-pill" id="controllerStatus">enter your name</div>
+    </header>
 
-    <h1 id="controllerTitle">car builder</h1>
-    <p id="controllerStatus">scan the qr to join</p>
+    <section class="controller-card join-card" id="joinCard">
+      <h1 class="controller-title">join race</h1>
 
-    <div id="nameEntryPanel" class="name-entry-panel">
-      <div class="ready-title">enter your name</div>
+      <label class="controller-label" for="playerName">name</label>
+      <input id="playerName" class="controller-input" type="text" maxlength="20" placeholder="enter name" />
 
-      <input
-        id="playerNameInput"
-        class="player-name-input"
-        type="text"
-        placeholder="your name"
-        maxlength="18"
-        autocomplete="off"
-      />
-
-      <div id="emailFieldWrap">
-        <input
-          id="playerEmailInput"
-          class="player-name-input"
-          type="email"
-          placeholder="enter email (optional)"
-          maxlength="120"
-          autocomplete="off"
-        />
+      <div id="emailRow" class="email-row hidden">
+        <label class="controller-label" for="playerEmail">email optional</label>
+        <input id="playerEmail" class="controller-input" type="email" maxlength="60" placeholder="enter email optional" />
       </div>
 
-      <button id="joinWithNameBtn" class="normal-action-btn">confirm</button>
-    </div>
+      <button id="confirmNameBtn" class="controller-main-btn">confirm</button>
+    </section>
 
-    <div id="builderPanel" class="builder-panel" style="display:none;">
-      <div class="builder-section">
-        <div class="builder-label">front wing</div>
-        <div class="builder-row">
-          <button id="frontPrevBtn" class="arrow-btn">‹</button>
+    <section class="controller-card builder-card" id="builderCard">
+      <div class="build-heading-wrap">
+        <h2 class="controller-subtitle">build your car</h2>
+        <p class="build-note" id="buildNote">choose your parts, then press ready</p>
+      </div>
 
-          <div class="part-card">
-            <img id="frontImage" class="part-image" alt="front wing" />
-            <div id="frontName" class="part-name">front wing</div>
-            <div id="frontStats" class="part-stats">waiting</div>
-            <button id="frontSelectBtn" class="part-select-btn">select front</button>
-            <div id="frontSelectedText" class="part-selected-text">not selected</div>
+      <div class="selector-stack">
+        <div class="selector-card">
+          <div class="selector-top">
+            <div class="selector-title">front wing</div>
+            <div class="selector-stats" id="frontStats">0.0g • Cd 0.000</div>
           </div>
 
-          <button id="frontNextBtn" class="arrow-btn">›</button>
+          <div class="selector-row">
+            <button id="frontPrevBtn" class="selector-arrow-btn" type="button" aria-label="previous front wing">‹</button>
+
+            <div class="selector-preview">
+              <img id="frontPreview" class="selector-preview-image" alt="front wing preview" />
+              <div id="frontName" class="selector-name">front wing</div>
+            </div>
+
+            <button id="frontNextBtn" class="selector-arrow-btn" type="button" aria-label="next front wing">›</button>
+          </div>
         </div>
-      </div>
 
-      <div class="builder-section">
-        <div class="builder-label">body</div>
-        <div class="builder-row">
-          <button id="bodyPrevBtn" class="arrow-btn">‹</button>
-
-          <div class="part-card">
-            <img id="bodyImage" class="part-image" alt="body" />
-            <div id="bodyName" class="part-name">body</div>
-            <div id="bodyStats" class="part-stats">waiting</div>
-            <button id="bodySelectBtn" class="part-select-btn">select body</button>
-            <div id="bodySelectedText" class="part-selected-text">not selected</div>
+        <div class="selector-card">
+          <div class="selector-top">
+            <div class="selector-title">body</div>
+            <div class="selector-stats" id="bodyStats">0.0g • Cd 0.000</div>
           </div>
 
-          <button id="bodyNextBtn" class="arrow-btn">›</button>
+          <div class="selector-row">
+            <button id="bodyPrevBtn" class="selector-arrow-btn" type="button" aria-label="previous body">‹</button>
+
+            <div class="selector-preview">
+              <img id="bodyPreview" class="selector-preview-image" alt="body preview" />
+              <div id="bodyName" class="selector-name">body</div>
+            </div>
+
+            <button id="bodyNextBtn" class="selector-arrow-btn" type="button" aria-label="next body">›</button>
+          </div>
         </div>
-      </div>
 
-      <div class="builder-section">
-        <div class="builder-label">rear wing</div>
-        <div class="builder-row">
-          <button id="rearPrevBtn" class="arrow-btn">‹</button>
-
-          <div class="part-card">
-            <img id="rearImage" class="part-image" alt="rear wing" />
-            <div id="rearName" class="part-name">rear wing</div>
-            <div id="rearStats" class="part-stats">waiting</div>
-            <button id="rearSelectBtn" class="part-select-btn">select rear</button>
-            <div id="rearSelectedText" class="part-selected-text">not selected</div>
+        <div class="selector-card">
+          <div class="selector-top">
+            <div class="selector-title">rear wing</div>
+            <div class="selector-stats" id="rearStats">0.0g • Cd 0.000</div>
           </div>
 
-          <button id="rearNextBtn" class="arrow-btn">›</button>
+          <div class="selector-row">
+            <button id="rearPrevBtn" class="selector-arrow-btn" type="button" aria-label="previous rear wing">‹</button>
+
+            <div class="selector-preview">
+              <img id="rearPreview" class="selector-preview-image" alt="rear wing preview" />
+              <div id="rearName" class="selector-name">rear wing</div>
+            </div>
+
+            <button id="rearNextBtn" class="selector-arrow-btn" type="button" aria-label="next rear wing">›</button>
+          </div>
         </div>
       </div>
 
       <div class="build-summary-card">
-        <div class="build-summary-title">build summary</div>
-        <div id="massSummary" class="build-summary-line">total mass: select all 3 parts</div>
-        <div id="cdSummary" class="build-summary-line">total Cd: select all 3 parts</div>
-      </div>
-
-      <button id="confirmBuildBtn" class="normal-action-btn">confirm full build</button>
-    </div>
-
-    <div id="singlePresetPanel" class="builder-panel" style="display:none;">
-      <div class="builder-section">
-        <div class="builder-label">car preset</div>
-        <div class="builder-row">
-          <button id="presetPrevBtn" class="arrow-btn">‹</button>
-
-          <div class="part-card">
-            <img id="presetImage" class="part-image preset-preview-image" alt="preset car" />
-            <div id="presetName" class="part-name">preset</div>
-            <div id="presetStats" class="part-stats">waiting</div>
-            <button id="presetSelectBtn" class="part-select-btn">select car</button>
-            <div id="presetSelectedText" class="part-selected-text">not selected</div>
-          </div>
-
-          <button id="presetNextBtn" class="arrow-btn">›</button>
+        <div class="build-summary-line">
+          <span>total mass</span>
+          <strong id="totalMassValue">0.0g</strong>
+        </div>
+        <div class="build-summary-line">
+          <span>total Cd</span>
+          <strong id="totalCdValue">0.000</strong>
         </div>
       </div>
 
-      <button id="confirmPresetBtn" class="normal-action-btn">confirm car</button>
-    </div>
+      <div class="builder-buttons">
+        <button id="readyBtn" class="controller-main-btn" type="button">ready</button>
+        <button id="editBuildBtn" class="controller-secondary-btn" type="button">change build</button>
+      </div>
+    </section>
 
-    <div id="readyPanel" class="ready-panel" style="display:none;">
-      <div class="ready-title">build selected</div>
-      <div id="readyMassText" class="build-summary-line">total mass: waiting</div>
-      <div id="readyCdText" class="build-summary-line">total Cd: waiting</div>
-      <button id="editBuildBtn" class="normal-action-btn">change build</button>
-    </div>
+    <section class="controller-card tap-card" id="tapCard">
+      <div class="tap-label">reaction</div>
+      <div class="tap-help" id="tapHelpText">wait for the lights</div>
 
-    <button id="tapButton" class="ready" disabled>tap</button>
+      <button id="tapButton" class="big-tap-btn" type="button">
+        <span id="tapButtonText">WAIT</span>
+      </button>
 
-    <div id="phoneWinnerOverlay" class="phone-winner-overlay" style="display:none;">
-      <div id="phoneWinnerText" class="phone-winner-text">winner</div>
-    </div>
+      <div class="tap-readout" id="tapReadout">reaction: waiting</div>
+    </section>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="controller.js?v=14"></script>
+  <script src="controller.js?v=23"></script>
 </body>
 </html>

@@ -3,23 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>neevo leaderboard admin</title>
-  <link rel="stylesheet" href="style.css?v=15" />
+  <title>neevo leaderboard</title>
+  <link rel="stylesheet" href="style.css?v=23" />
 </head>
-<body class="leaderboard-page">
-  <div class="leaderboard-page-wrap">
-    <div class="leaderboard-page-header">
-      <img src="NeevoLogo.png" alt="Neevo" class="leaderboard-page-logo" />
-      <h1 class="leaderboard-page-title">leaderboard admin</h1>
-      <p class="leaderboard-page-subtitle">host only</p>
-      <a href="/host.html?v=15" class="leaderboard-back-btn">back</a>
-    </div>
+<body class="leaderboard-admin-page">
+  <div class="leaderboard-admin-shell">
+    <header class="leaderboard-admin-header">
+      <div>
+        <img src="NeevoLogo.png" alt="Neevo" class="leaderboard-admin-logo" />
+        <h1 class="leaderboard-admin-title">multiplayer leaderboard</h1>
+        <p class="leaderboard-admin-subtitle">admin view, multiplayer winners only</p>
+      </div>
 
-    <div id="fullLeaderboardList" class="leaderboard-full-list">
-      <div class="leaderboard-empty">loading...</div>
-    </div>
+      <div class="leaderboard-admin-actions">
+        <a href="/host-admin" class="leaderboard-admin-btn">back to host</a>
+      </div>
+    </header>
+
+    <section class="leaderboard-admin-top3" id="leaderboardTop3">
+      <div class="leaderboard-mini-card">
+        <div class="leaderboard-mini-rank">#1</div>
+        <div class="leaderboard-mini-name">waiting</div>
+        <div class="leaderboard-mini-time">0.000s</div>
+      </div>
+
+      <div class="leaderboard-mini-card">
+        <div class="leaderboard-mini-rank">#2</div>
+        <div class="leaderboard-mini-name">waiting</div>
+        <div class="leaderboard-mini-time">0.000s</div>
+      </div>
+
+      <div class="leaderboard-mini-card">
+        <div class="leaderboard-mini-rank">#3</div>
+        <div class="leaderboard-mini-name">waiting</div>
+        <div class="leaderboard-mini-time">0.000s</div>
+      </div>
+    </section>
+
+    <section class="leaderboard-table-wrap">
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th>rank</th>
+            <th>name</th>
+            <th>email</th>
+            <th>total</th>
+            <th>reaction</th>
+            <th>finish</th>
+            <th>date</th>
+            <th>remove</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardTableBody">
+          <tr>
+            <td colspan="8" class="leaderboard-empty-cell">loading...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
   </div>
 
-  <script src="leaderboard-admin.js?v=15"></script>
+  <script src="leaderboard-admin.js?v=23"></script>
 </body>
 </html>

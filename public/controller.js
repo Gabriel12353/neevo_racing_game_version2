@@ -1,905 +1,471 @@
 const socket = io();
 
-const controllerTitle = document.getElementById("controllerTitle");
+const params = new URLSearchParams(window.location.search);
+const playerRole = params.get("role") || "player1";
+const sessionId = params.get("sessionId") || "";
+const showEmailField = params.get("email") === "1" || params.get("adminView") === "1";
+
+const joinCard = document.getElementById("joinCard");
+const builderCard = document.getElementById("builderCard");
+const tapCard = document.getElementById("tapCard");
+
+const controllerRoleLabel = document.getElementById("controllerRoleLabel");
 const controllerStatus = document.getElementById("controllerStatus");
-const nameEntryPanel = document.getElementById("nameEntryPanel");
-const playerNameInput = document.getElementById("playerNameInput");
-const playerEmailInput = document.getElementById("playerEmailInput");
-const emailFieldWrap = document.getElementById("emailFieldWrap");
-const joinWithNameBtn = document.getElementById("joinWithNameBtn");
-const builderPanel = document.getElementById("builderPanel");
-const singlePresetPanel = document.getElementById("singlePresetPanel");
-const readyPanel = document.getElementById("readyPanel");
-const confirmBuildBtn = document.getElementById("confirmBuildBtn");
-const confirmPresetBtn = document.getElementById("confirmPresetBtn");
+const buildNote = document.getElementById("buildNote");
+
+const playerNameInput = document.getElementById("playerName");
+const playerEmailInput = document.getElementById("playerEmail");
+const emailRow = document.getElementById("emailRow");
+const confirmNameBtn = document.getElementById("confirmNameBtn");
+
+const readyBtn = document.getElementById("readyBtn");
 const editBuildBtn = document.getElementById("editBuildBtn");
-const tapButton = document.getElementById("tapButton");
-const phoneWinnerOverlay = document.getElementById("phoneWinnerOverlay");
-const phoneWinnerText = document.getElementById("phoneWinnerText");
 
-const frontImage = document.getElementById("frontImage");
+const frontPrevBtn = document.getElementById("frontPrevBtn");
+const frontNextBtn = document.getElementById("frontNextBtn");
+const bodyPrevBtn = document.getElementById("bodyPrevBtn");
+const bodyNextBtn = document.getElementById("bodyNextBtn");
+const rearPrevBtn = document.getElementById("rearPrevBtn");
+const rearNextBtn = document.getElementById("rearNextBtn");
+
+const frontPreview = document.getElementById("frontPreview");
+const bodyPreview = document.getElementById("bodyPreview");
+const rearPreview = document.getElementById("rearPreview");
+
 const frontName = document.getElementById("frontName");
-const frontStats = document.getElementById("frontStats");
-
-const bodyImage = document.getElementById("bodyImage");
 const bodyName = document.getElementById("bodyName");
-const bodyStats = document.getElementById("bodyStats");
-
-const rearImage = document.getElementById("rearImage");
 const rearName = document.getElementById("rearName");
+
+const frontStats = document.getElementById("frontStats");
+const bodyStats = document.getElementById("bodyStats");
 const rearStats = document.getElementById("rearStats");
 
-const frontSelectBtn = document.getElementById("frontSelectBtn");
-const bodySelectBtn = document.getElementById("bodySelectBtn");
-const rearSelectBtn = document.getElementById("rearSelectBtn");
+const totalMassValue = document.getElementById("totalMassValue");
+const totalCdValue = document.getElementById("totalCdValue");
 
-const frontSelectedText = document.getElementById("frontSelectedText");
-const bodySelectedText = document.getElementById("bodySelectedText");
-const rearSelectedText = document.getElementById("rearSelectedText");
+const tapButton = document.getElementById("tapButton");
+const tapButtonText = document.getElementById("tapButtonText");
+const tapHelpText = document.getElementById("tapHelpText");
+const tapReadout = document.getElementById("tapReadout");
 
-const presetImage = document.getElementById("presetImage");
-const presetName = document.getElementById("presetName");
-const presetStats = document.getElementById("presetStats");
-const presetSelectBtn = document.getElementById("presetSelectBtn");
-const presetSelectedText = document.getElementById("presetSelectedText");
+let partsData = {
+  front: [],
+  body: [],
+  rear: []
+};
 
-const massSummary = document.getElementById("massSummary");
-const cdSummary = document.getElementById("cdSummary");
-const readyMassText = document.getElementById("readyMassText");
-const readyCdText = document.getElementById("readyCdText");
+let selectedIndex = {
+  front: 0,
+  body: 0,
+  rear: 0
+};
 
-const params = new URLSearchParams(window.location.search);
-const qrPlayer = params.get("player");
-const gameIdFromUrl = params.get("game");
-let sessionId = params.get("session") || null;
-
-let currentPlayer = null;
-let currentName = "";
-let currentEmail = "";
-let partsData = null;
-let presetsData = [];
-let currentMode = null;
-let currentGameId = gameIdFromUrl || null;
-let allowEmailEntry = false;
-
+let joined = false;
+let buildSaved = false;
+let countdownActive = false;
+let canTap = false;
+let alreadyTapped = false;
+let lightsOutTime = null;
 let bothPlayersReady = false;
-let raceArmed = false;
 let raceStarted = false;
 let raceFinished = false;
 
-const currentIndexes = {
-  front: 0,
-  body: 0,
-  rear: 0,
-  preset: 0
-};
+controllerRoleLabel.textContent = playerRole === "player2" ? "player 2" : "player 1";
 
-const selectedIndexes = {
-  front: null,
-  body: null,
-  rear: null,
-  preset: null
-};
-
-let canTap = false;
-let alreadyTapped = false;
-let lightsOutTime = 0;
-let lastTapPressAt = 0;
-let audioCtxSingleton = null;
-
-function formatMass(value) {
-  return `${Number(value).toFixed(1)}g`;
+if (showEmailField) {
+  emailRow.classList.remove("hidden");
 }
 
-function makeAudioContext() {
-  if (audioCtxSingleton) return audioCtxSingleton;
-
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
-
-  audioCtxSingleton = new AudioContextClass();
-  return audioCtxSingleton;
+function safeText(value, fallback = "") {
+  return String(value ?? fallback);
 }
 
-async function unlockAudio() {
-  try {
-    const audioCtx = makeAudioContext();
-    if (!audioCtx) return;
-    if (audioCtx.state === "suspended") {
-      await audioCtx.resume();
-    }
-  } catch (error) {
-    console.log("audio unlock failed", error);
-  }
+function getPartLabel(part, fallback) {
+  return safeText(
+    part?.displayName || part?.name || part?.label || part?.id || fallback,
+    fallback
+  );
 }
 
-function playTapBuzzer() {
-  try {
-    const audioCtx = makeAudioContext();
-    if (!audioCtx) return;
-    const now = audioCtx.currentTime;
-
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc.type = "square";
-    osc.frequency.setValueAtTime(145, now);
-    osc.frequency.linearRampToValueAtTime(120, now + 0.08);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-  } catch (error) {
-    console.log("tap buzzer failed", error);
-  }
+function getPartMass(part) {
+  return Number(part?.mass ?? part?.mass_g ?? 0);
 }
 
-function playVictorySound() {
-  try {
-    const audioCtx = makeAudioContext();
-    if (!audioCtx) return;
-    const now = audioCtx.currentTime;
-
-    const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-
-    osc1.type = "triangle";
-    osc2.type = "sine";
-
-    osc1.frequency.setValueAtTime(523.25, now);
-    osc1.frequency.setValueAtTime(659.25, now + 0.12);
-    osc1.frequency.setValueAtTime(783.99, now + 0.24);
-
-    osc2.frequency.setValueAtTime(659.25, now);
-    osc2.frequency.setValueAtTime(783.99, now + 0.12);
-    osc2.frequency.setValueAtTime(1046.5, now + 0.24);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.7);
-    osc2.stop(now + 0.7);
-  } catch (error) {
-    console.log("victory sound failed", error);
-  }
+function getPartCd(part) {
+  return Number(part?.cd ?? part?.Cd ?? 0);
 }
 
-function firePhoneConfetti() {
-  if (typeof confetti !== "function") return;
-
-  confetti({
-    particleCount: 120,
-    spread: 90,
-    startVelocity: 45,
-    origin: { y: 0.55 }
-  });
-
-  setTimeout(() => {
-    confetti({
-      particleCount: 80,
-      spread: 100,
-      startVelocity: 40,
-      origin: { y: 0.65 }
-    });
-  }, 250);
+function getPartImage(part) {
+  return safeText(part?.image || part?.imagePath || part?.asset || "", "");
 }
 
-function triggerPhoneWinEffects() {
-  firePhoneConfetti();
-  playVictorySound();
+function wrapIndex(index, length) {
+  if (!length) return 0;
+  if (index < 0) return length - 1;
+  if (index >= length) return 0;
+  return index;
 }
 
-function setButtonState(state, text) {
-  tapButton.classList.remove("ready", "go", "false-start");
-  if (state) tapButton.classList.add(state);
-  tapButton.textContent = text;
+function currentPart(type) {
+  return partsData[type]?.[selectedIndex[type]] || null;
 }
 
-function updateTapAvailability() {
-  const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
-  tapButton.disabled = !(currentPlayer && sessionId && currentGameId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
-}
-
-function updateEditBuildAvailability() {
-  const lockBuild = raceArmed || raceStarted || raceFinished;
-  editBuildBtn.disabled = lockBuild;
-}
-
-function resetTapState() {
-  canTap = false;
-  alreadyTapped = false;
-  lightsOutTime = 0;
-  lastTapPressAt = 0;
-  tapButton.disabled = true;
-  setButtonState("ready", "tap");
-}
-
-function updateEmailFieldVisibility() {
-  const shouldShow = currentMode === "multiplayer" && allowEmailEntry;
-
-  if (shouldShow) {
-    emailFieldWrap.style.display = "block";
-  } else {
-    emailFieldWrap.style.display = "none";
-    playerEmailInput.value = "";
-  }
-}
-
-function showExpiredMessage() {
-  nameEntryPanel.style.display = "block";
-  builderPanel.style.display = "none";
-  singlePresetPanel.style.display = "none";
-  readyPanel.style.display = "none";
-  phoneWinnerOverlay.style.display = "none";
-  playerNameInput.value = "";
-  playerEmailInput.value = "";
-  currentPlayer = null;
-  currentName = "";
-  currentEmail = "";
-  bothPlayersReady = false;
-  raceArmed = false;
-  raceStarted = false;
-  raceFinished = false;
-  controllerTitle.textContent = "car builder";
-  controllerStatus.textContent = "session expired. scan the new qr";
-  resetTapState();
-  updateEditBuildAvailability();
-  updateEmailFieldVisibility();
-}
-
-function getSelectedBuild() {
-  if (!partsData) return null;
-  if (
-    selectedIndexes.front === null ||
-    selectedIndexes.body === null ||
-    selectedIndexes.rear === null
-  ) {
-    return null;
-  }
-
-  const front = partsData.front[selectedIndexes.front];
-  const body = partsData.body[selectedIndexes.body];
-  const rear = partsData.rear[selectedIndexes.rear];
-
-  const totalMass = Number((front.mass + body.mass + rear.mass).toFixed(1));
-  const totalCd = Number((front.cd + body.cd + rear.cd).toFixed(3));
+function currentSelection() {
+  const front = currentPart("front");
+  const body = currentPart("body");
+  const rear = currentPart("rear");
 
   return {
-    front,
-    body,
-    rear,
-    totalMass,
-    totalCd
+    front: front?.id || "front1",
+    body: body?.id || "body1",
+    rear: rear?.id || "rear1"
   };
 }
 
-function getSelectedPreset() {
-  if (!presetsData.length || selectedIndexes.preset === null) return null;
-  return presetsData[selectedIndexes.preset];
+function updateTapVisual(state, text) {
+  tapButton.dataset.state = state;
+  tapButtonText.textContent = text;
 }
 
-function getCurrentPart(type) {
-  if (!partsData) return null;
-  return partsData[type][currentIndexes[type]];
+function updateTapAvailability() {
+  tapButton.disabled = !(canTap || countdownActive) || alreadyTapped || !buildSaved;
 }
 
-function getCurrentPreset() {
-  if (!presetsData.length) return null;
-  return presetsData[currentIndexes.preset];
+function renderPart(type) {
+  const part = currentPart(type);
+  if (!part) return;
+
+  const label = getPartLabel(part, type);
+  const mass = getPartMass(part).toFixed(1);
+  const cd = getPartCd(part).toFixed(3);
+  const image = getPartImage(part);
+
+  if (type === "front") {
+    frontName.textContent = label;
+    frontStats.textContent = `${mass}g • Cd ${cd}`;
+    frontPreview.src = image;
+  }
+
+  if (type === "body") {
+    bodyName.textContent = label;
+    bodyStats.textContent = `${mass}g • Cd ${cd}`;
+    bodyPreview.src = image;
+  }
+
+  if (type === "rear") {
+    rearName.textContent = label;
+    rearStats.textContent = `${mass}g • Cd ${cd}`;
+    rearPreview.src = image;
+  }
 }
 
-function showBuilderPanel() {
-  if (raceArmed || raceStarted || raceFinished) return;
+function updateTotals() {
+  const front = currentPart("front");
+  const body = currentPart("body");
+  const rear = currentPart("rear");
 
-  builderPanel.style.display = currentMode === "multiplayer" ? "block" : "none";
-  singlePresetPanel.style.display = currentMode === "singleplayer" ? "block" : "none";
-  readyPanel.style.display = "none";
+  const totalMass =
+    getPartMass(front) +
+    getPartMass(body) +
+    getPartMass(rear);
+
+  const totalCd =
+    getPartCd(front) +
+    getPartCd(body) +
+    getPartCd(rear);
+
+  totalMassValue.textContent = `${totalMass.toFixed(1)}g`;
+  totalCdValue.textContent = totalCd.toFixed(3);
 }
 
-function showReadyPanel() {
-  builderPanel.style.display = "none";
-  singlePresetPanel.style.display = "none";
-  readyPanel.style.display = "block";
+function renderBuilder() {
+  renderPart("front");
+  renderPart("body");
+  renderPart("rear");
+  updateTotals();
 }
 
-function joinPlayerWithName() {
-  const enteredName = playerNameInput.value.trim();
-  const enteredEmail = playerEmailInput.value.trim();
+async function loadParts() {
+  try {
+    const response = await fetch("/api/parts");
+    const data = await response.json();
 
-  if (!enteredName) {
+    partsData.front = Array.isArray(data.front) ? data.front : [];
+    partsData.body = Array.isArray(data.body) ? data.body : [];
+    partsData.rear = Array.isArray(data.rear) ? data.rear : [];
+
+    renderBuilder();
+  } catch (error) {
+    console.error("failed to load parts", error);
+    controllerStatus.textContent = "failed to load parts";
+  }
+}
+
+function setBuilderLocked(locked) {
+  [
+    frontPrevBtn,
+    frontNextBtn,
+    bodyPrevBtn,
+    bodyNextBtn,
+    rearPrevBtn,
+    rearNextBtn
+  ].forEach((btn) => {
+    btn.disabled = locked;
+  });
+
+  readyBtn.disabled = locked;
+  editBuildBtn.disabled = !locked || countdownActive || raceStarted;
+}
+
+function goPrev(type) {
+  selectedIndex[type] = wrapIndex(selectedIndex[type] - 1, partsData[type].length);
+  renderBuilder();
+}
+
+function goNext(type) {
+  selectedIndex[type] = wrapIndex(selectedIndex[type] + 1, partsData[type].length);
+  renderBuilder();
+}
+
+function resetTapState() {
+  countdownActive = false;
+  canTap = false;
+  alreadyTapped = false;
+  lightsOutTime = null;
+  raceStarted = false;
+  raceFinished = false;
+  tapReadout.textContent = "reaction: waiting";
+  tapHelpText.textContent = buildSaved ? "wait for the lights" : "save your build first";
+  updateTapVisual("idle", "WAIT");
+  updateTapAvailability();
+}
+
+function enterJoinedState() {
+  joined = true;
+  joinCard.classList.add("collapsed");
+  builderCard.classList.remove("hidden");
+  tapCard.classList.remove("hidden");
+  controllerStatus.textContent = "build your car";
+}
+
+function saveBuild() {
+  if (!joined) {
     controllerStatus.textContent = "enter your name first";
     return;
   }
 
-  if (!qrPlayer || !sessionId || !currentGameId) {
-    showExpiredMessage();
-    return;
-  }
-
-  currentPlayer = qrPlayer;
-  currentName = enteredName;
-  currentEmail = allowEmailEntry && currentMode === "multiplayer" ? enteredEmail : "";
-
-  socket.emit("join", {
-    gameId: currentGameId,
-    role: currentPlayer,
-    name: currentName,
-    email: currentEmail,
+  socket.emit("save-build", {
+    player: playerRole,
+    selection: currentSelection(),
     sessionId
   });
 
-  controllerTitle.textContent = currentName;
-  controllerStatus.textContent =
-    currentMode === "singleplayer" ? "choose your car" : "choose your components";
-
-  nameEntryPanel.style.display = "none";
-  showBuilderPanel();
-
-  renderBuilder();
-  renderPresetChooser();
-  updateTapAvailability();
-  updateEditBuildAvailability();
+  buildSaved = true;
+  setBuilderLocked(true);
+  buildNote.textContent = "build saved";
+  controllerStatus.textContent = "ready";
+  tapHelpText.textContent = "wait for the lights";
+  resetTapState();
 }
 
-function renderBuilder() {
-  if (!partsData) return;
+function editBuild() {
+  socket.emit("edit-build", {
+    player: playerRole,
+    sessionId
+  });
 
-  const front = getCurrentPart("front");
-  const body = getCurrentPart("body");
-  const rear = getCurrentPart("rear");
-
-  frontImage.src = front.image;
-  frontName.textContent = front.name;
-  frontStats.textContent = `${formatMass(front.mass)} • Cd ${front.cd.toFixed(3)}`;
-
-  bodyImage.src = body.image;
-  bodyName.textContent = body.name;
-  bodyStats.textContent = `${formatMass(body.mass)} • Cd ${body.cd.toFixed(3)}`;
-
-  rearImage.src = rear.image;
-  rearName.textContent = rear.name;
-  rearStats.textContent = `${formatMass(rear.mass)} • Cd ${rear.cd.toFixed(3)}`;
-
-  updateSelectedUi();
-  updateSummary();
+  buildSaved = false;
+  setBuilderLocked(false);
+  buildNote.textContent = "choose your parts, then press ready";
+  controllerStatus.textContent = "editing build";
+  resetTapState();
 }
 
-function updateSelectedUi() {
-  const frontSelected = selectedIndexes.front === currentIndexes.front;
-  const bodySelected = selectedIndexes.body === currentIndexes.body;
-  const rearSelected = selectedIndexes.rear === currentIndexes.rear;
+function joinRace() {
+  const name = playerNameInput.value.trim();
+  const email = playerEmailInput ? playerEmailInput.value.trim() : "";
 
-  frontSelectBtn.classList.toggle("selected", frontSelected);
-  bodySelectBtn.classList.toggle("selected", bodySelected);
-  rearSelectBtn.classList.toggle("selected", rearSelected);
-
-  frontSelectBtn.textContent = frontSelected ? "selected" : "select front";
-  bodySelectBtn.textContent = bodySelected ? "selected" : "select body";
-  rearSelectBtn.textContent = rearSelected ? "selected" : "select rear";
-
-  frontSelectedText.textContent =
-    selectedIndexes.front === null
-      ? "not selected"
-      : `selected: ${partsData.front[selectedIndexes.front].name}`;
-
-  bodySelectedText.textContent =
-    selectedIndexes.body === null
-      ? "not selected"
-      : `selected: ${partsData.body[selectedIndexes.body].name}`;
-
-  rearSelectedText.textContent =
-    selectedIndexes.rear === null
-      ? "not selected"
-      : `selected: ${partsData.rear[selectedIndexes.rear].name}`;
-}
-
-function updateSummary() {
-  const selectedBuild = getSelectedBuild();
-
-  if (!selectedBuild) {
-    massSummary.textContent = "total mass: select all 3 parts";
-    cdSummary.textContent = "total Cd: select all 3 parts";
-    readyMassText.textContent = "total mass: waiting";
-    readyCdText.textContent = "total Cd: waiting";
-    confirmBuildBtn.disabled = true;
+  if (!name) {
+    controllerStatus.textContent = "enter your name";
     return;
   }
 
-  massSummary.textContent = `total mass: ${formatMass(selectedBuild.totalMass)}`;
-  cdSummary.textContent = `total Cd: ${selectedBuild.totalCd.toFixed(3)}`;
-  readyMassText.textContent = `total mass: ${formatMass(selectedBuild.totalMass)}`;
-  readyCdText.textContent = `total Cd: ${selectedBuild.totalCd.toFixed(3)}`;
-  confirmBuildBtn.disabled = false;
+  socket.emit("join", {
+    role: playerRole,
+    name,
+    email,
+    sessionId
+  });
+
+  enterJoinedState();
 }
 
-function renderPresetChooser() {
-  if (!presetsData.length) return;
+function handleTapPress(event) {
+  event.preventDefault();
 
-  const preset = getCurrentPreset();
-  if (!preset) return;
+  if (alreadyTapped || !buildSaved) return;
 
-  presetImage.src = preset.image;
-  presetImage.className = `part-image preset-preview-image ${preset.colorClass || ""}`;
-  presetName.textContent = preset.name;
-  presetStats.textContent = `${formatMass(preset.totalMass)} • Cd ${preset.totalCd.toFixed(3)}`;
-
-  const presetSelected = selectedIndexes.preset === currentIndexes.preset;
-  presetSelectBtn.classList.toggle("selected", presetSelected);
-  presetSelectBtn.textContent = presetSelected ? "selected" : "select car";
-
-  presetSelectedText.textContent =
-    selectedIndexes.preset === null
-      ? "not selected"
-      : `selected: ${presetsData[selectedIndexes.preset].name}`;
-
-  const selectedPreset = getSelectedPreset();
-  if (selectedPreset) {
-    readyMassText.textContent = `total mass: ${formatMass(selectedPreset.totalMass)}`;
-    readyCdText.textContent = `total Cd: ${selectedPreset.totalCd.toFixed(3)}`;
-    confirmPresetBtn.disabled = false;
-  } else {
-    confirmPresetBtn.disabled = true;
-  }
-}
-
-function cyclePart(type, direction) {
-  if (!partsData) return;
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  const maxIndex = partsData[type].length - 1;
-  currentIndexes[type] += direction;
-
-  if (currentIndexes[type] < 0) currentIndexes[type] = maxIndex;
-  if (currentIndexes[type] > maxIndex) currentIndexes[type] = 0;
-
-  renderBuilder();
-}
-
-function cyclePreset(direction) {
-  if (!presetsData.length) return;
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  const maxIndex = presetsData.length - 1;
-  currentIndexes.preset += direction;
-
-  if (currentIndexes.preset < 0) currentIndexes.preset = maxIndex;
-  if (currentIndexes.preset > maxIndex) currentIndexes.preset = 0;
-
-  renderPresetChooser();
-}
-
-function selectPart(type) {
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  selectedIndexes[type] = currentIndexes[type];
-  updateSelectedUi();
-  updateSummary();
-  updateTapAvailability();
-}
-
-function selectPreset() {
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  selectedIndexes.preset = currentIndexes.preset;
-  renderPresetChooser();
-  updateTapAvailability();
-}
-
-function getEventHighResTime(event) {
-  if (event && typeof event.timeStamp === "number" && Number.isFinite(event.timeStamp) && event.timeStamp > 0) {
-    return event.timeStamp;
-  }
-  return performance.now();
-}
-
-async function handleTapPress(event) {
-  if (event) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  await unlockAudio();
-
-  const pressTime = getEventHighResTime(event);
-
-  if (pressTime - lastTapPressAt < 120) return;
-  lastTapPressAt = pressTime;
-
-  const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
-
-  if (!currentPlayer || !sessionId || !currentGameId) return;
-  if (!hasBuild) return;
-  if (!bothPlayersReady) return;
-  if (!raceArmed) return;
-
-  if (!canTap) {
-    if (alreadyTapped) return;
-
-    playTapBuzzer();
+  if (countdownActive) {
     alreadyTapped = true;
-    setButtonState("false-start", "false start");
-    tapButton.disabled = true;
+    tapReadout.textContent = "reaction: false start";
+    tapHelpText.textContent = "false start";
+    controllerStatus.textContent = "false start";
+    updateTapVisual("false", "FALSE");
+    updateTapAvailability();
 
     socket.emit("reaction-result", {
-      gameId: currentGameId,
-      player: currentPlayer,
+      player: playerRole,
       type: "false-start",
       sessionId
     });
     return;
   }
 
-  if (alreadyTapped) return;
-  if (!raceStarted) return;
-  if (!lightsOutTime) return;
+  if (!canTap || lightsOutTime === null) return;
 
-  playTapBuzzer();
+  const reactionTime = Math.max(0, (performance.now() - lightsOutTime) / 1000);
+
   alreadyTapped = true;
+  canTap = false;
+  raceFinished = true;
 
-  const reactionTime = Math.max(0, (pressTime - lightsOutTime) / 1000);
-
-  tapButton.disabled = true;
-  setButtonState("ready", `${reactionTime.toFixed(3)}s`);
+  tapReadout.textContent = `reaction: ${reactionTime.toFixed(3)}s`;
+  tapHelpText.textContent = "reaction sent";
+  controllerStatus.textContent = "reaction sent";
+  updateTapVisual("sent", reactionTime.toFixed(3));
+  updateTapAvailability();
 
   socket.emit("reaction-result", {
-    gameId: currentGameId,
-    player: currentPlayer,
+    player: playerRole,
     type: "valid",
     reactionTime,
     sessionId
   });
 }
 
-joinWithNameBtn.addEventListener("click", async () => {
-  await unlockAudio();
-  joinPlayerWithName();
-});
+function applyStateSync(state) {
+  if (!state) return;
 
-playerNameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    joinPlayerWithName();
-  }
-});
+  bothPlayersReady = !!state.bothReady;
 
-playerEmailInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    joinPlayerWithName();
-  }
-});
+  const me = state[playerRole];
+  if (!me) return;
 
-document.getElementById("frontPrevBtn").addEventListener("click", () => cyclePart("front", -1));
-document.getElementById("frontNextBtn").addEventListener("click", () => cyclePart("front", 1));
-document.getElementById("bodyPrevBtn").addEventListener("click", () => cyclePart("body", -1));
-document.getElementById("bodyNextBtn").addEventListener("click", () => cyclePart("body", 1));
-document.getElementById("rearPrevBtn").addEventListener("click", () => cyclePart("rear", -1));
-document.getElementById("rearNextBtn").addEventListener("click", () => cyclePart("rear", 1));
-
-document.getElementById("presetPrevBtn").addEventListener("click", () => cyclePreset(-1));
-document.getElementById("presetNextBtn").addEventListener("click", () => cyclePreset(1));
-
-frontSelectBtn.addEventListener("click", () => selectPart("front"));
-bodySelectBtn.addEventListener("click", () => selectPart("body"));
-rearSelectBtn.addEventListener("click", () => selectPart("rear"));
-presetSelectBtn.addEventListener("click", () => selectPreset());
-
-confirmBuildBtn.addEventListener("click", () => {
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  if (!currentPlayer || !sessionId || !currentGameId) {
-    showExpiredMessage();
-    return;
+  if (me.name && !playerNameInput.value.trim()) {
+    playerNameInput.value = me.name;
   }
 
-  const build = getSelectedBuild();
-  if (!build) {
-    controllerStatus.textContent = "select all 3 parts first";
-    return;
+  if (me.ready) {
+    buildSaved = true;
+    setBuilderLocked(true);
+    buildNote.textContent = "build saved";
+  } else {
+    buildSaved = false;
+    setBuilderLocked(false);
+    buildNote.textContent = "choose your parts, then press ready";
   }
 
-  socket.emit("save-build", {
-    gameId: currentGameId,
-    player: currentPlayer,
-    selection: {
-      frontIndex: selectedIndexes.front,
-      bodyIndex: selectedIndexes.body,
-      rearIndex: selectedIndexes.rear
-    },
-    sessionId
-  });
-
-  controllerStatus.textContent = "waiting to start";
-  showReadyPanel();
-  resetTapState();
   updateTapAvailability();
-  updateEditBuildAvailability();
+}
+
+confirmNameBtn.addEventListener("click", joinRace);
+playerNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") joinRace();
 });
 
-confirmPresetBtn.addEventListener("click", () => {
-  if (raceArmed || raceStarted || raceFinished) return;
+frontPrevBtn.addEventListener("click", () => goPrev("front"));
+frontNextBtn.addEventListener("click", () => goNext("front"));
+bodyPrevBtn.addEventListener("click", () => goPrev("body"));
+bodyNextBtn.addEventListener("click", () => goNext("body"));
+rearPrevBtn.addEventListener("click", () => goPrev("rear"));
+rearNextBtn.addEventListener("click", () => goNext("rear"));
 
-  if (!currentPlayer || !sessionId || !currentGameId) {
-    showExpiredMessage();
-    return;
-  }
-
-  const preset = getSelectedPreset();
-  if (!preset) {
-    controllerStatus.textContent = "select a car first";
-    return;
-  }
-
-  socket.emit("save-singleplayer-car", {
-    gameId: currentGameId,
-    player: currentPlayer,
-    presetId: preset.id,
-    sessionId
-  });
-
-  controllerStatus.textContent = "ready to start";
-  showReadyPanel();
-  resetTapState();
-  updateTapAvailability();
-  updateEditBuildAvailability();
-});
-
-editBuildBtn.addEventListener("click", () => {
-  if (raceArmed || raceStarted || raceFinished) return;
-
-  controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
-  showBuilderPanel();
-  resetTapState();
-
-  if (currentPlayer && sessionId && currentGameId) {
-    socket.emit("edit-build", {
-      gameId: currentGameId,
-      player: currentPlayer,
-      sessionId
-    });
-  }
-});
+readyBtn.addEventListener("click", saveBuild);
+editBuildBtn.addEventListener("click", editBuild);
 
 tapButton.addEventListener("pointerdown", handleTapPress);
-tapButton.addEventListener("click", (e) => e.preventDefault());
+tapButton.addEventListener("click", (event) => event.preventDefault());
 tapButton.addEventListener(
   "touchstart",
-  async (e) => {
-    e.preventDefault();
-    await unlockAudio();
+  (event) => {
+    event.preventDefault();
   },
   { passive: false }
 );
 
-async function loadParts() {
-  try {
-    const response = await fetch("/api/parts");
-    if (!response.ok) {
-      controllerStatus.textContent = "parts failed to load";
-      return;
-    }
-
-    partsData = await response.json();
-    renderBuilder();
-  } catch (error) {
-    console.error(error);
-    controllerStatus.textContent = "parts failed to load";
-  }
-}
-
-async function loadPresets() {
-  try {
-    const response = await fetch("/api/presets");
-    if (!response.ok) return;
-    presetsData = await response.json();
-    renderPresetChooser();
-  } catch (error) {
-    console.error(error);
-  }
-}
+socket.on("connect", () => {
+  controllerStatus.textContent = "connected";
+});
 
 socket.on("state-sync", (state) => {
-  if (!state || !state.sessionId) return;
-
-  if (!sessionId) {
-    sessionId = state.sessionId;
-  }
-
-  if (state.gameId) {
-    currentGameId = state.gameId;
-  }
-
-  currentMode = state.mode;
-  bothPlayersReady = !!state.bothReady;
-  allowEmailEntry = !!state.allowEmailEntry;
-  updateEmailFieldVisibility();
-
-  if (!currentPlayer) {
-    updateTapAvailability();
-    updateEditBuildAvailability();
-    return;
-  }
-
-  const myState = state[currentPlayer];
-  if (!myState) {
-    updateTapAvailability();
-    updateEditBuildAvailability();
-    return;
-  }
-
-  if (myState.name) {
-    controllerTitle.textContent = myState.name;
-  }
-
-  if (currentMode === "singleplayer") {
-    editBuildBtn.textContent = "change car";
-  } else {
-    editBuildBtn.textContent = "change build";
-  }
-
-  if (myState.ready && myState.build) {
-    if (currentMode === "singleplayer") {
-      const presetIndex = presetsData.findIndex((item) => item.id === myState.build.presetId);
-      if (presetIndex >= 0) {
-        selectedIndexes.preset = presetIndex;
-        currentIndexes.preset = presetIndex;
-      }
-      renderPresetChooser();
-    } else {
-      selectedIndexes.front = myState.build.frontIndex;
-      selectedIndexes.body = myState.build.bodyIndex;
-      selectedIndexes.rear = myState.build.rearIndex;
-
-      currentIndexes.front = myState.build.frontIndex;
-      currentIndexes.body = myState.build.bodyIndex;
-      currentIndexes.rear = myState.build.rearIndex;
-
-      renderBuilder();
-    }
-
-    showReadyPanel();
-
-    if (!raceArmed && !raceStarted && !raceFinished) {
-      controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting";
-    }
-  } else if (!raceArmed && !raceStarted && !raceFinished) {
-    controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
-    showBuilderPanel();
-  }
-
-  updateTapAvailability();
-  updateEditBuildAvailability();
+  applyStateSync(state);
 });
 
 socket.on("session-invalid", () => {
-  sessionId = null;
-  showExpiredMessage();
+  controllerStatus.textContent = "session expired";
+  tapHelpText.textContent = "scan the new qr";
+  updateTapVisual("idle", "WAIT");
+  tapButton.disabled = true;
 });
 
-socket.on("session-cleared", (payload) => {
-  if (payload?.sessionId) sessionId = payload.sessionId;
-  if (payload?.gameId) currentGameId = payload.gameId;
-  showExpiredMessage();
+socket.on("session-cleared", () => {
+  controllerStatus.textContent = "session reset";
+  tapHelpText.textContent = "scan the new qr";
+  tapReadout.textContent = "reaction: waiting";
+  updateTapVisual("idle", "WAIT");
+  tapButton.disabled = true;
 });
 
 socket.on("reset-race", () => {
-  raceArmed = false;
-  raceStarted = false;
-  raceFinished = false;
   resetTapState();
-  controllerStatus.textContent = "waiting for green lights";
-  phoneWinnerOverlay.style.display = "none";
-  updateTapAvailability();
-  updateEditBuildAvailability();
+  controllerStatus.textContent = buildSaved ? "waiting for lights" : "save your build";
 });
 
-socket.on("race-started", () => {
-  raceArmed = true;
-  raceStarted = false;
-  raceFinished = false;
-  controllerStatus.textContent = "wait for lights out";
-  updateTapAvailability();
-  updateEditBuildAvailability();
-});
+socket.on("light-step", () => {
+  if (!buildSaved) return;
 
-socket.on("light-step", (step) => {
-  raceArmed = true;
-  raceStarted = false;
-  raceFinished = false;
+  countdownActive = true;
   canTap = false;
   alreadyTapped = false;
-  tapButton.disabled = true;
-  controllerStatus.textContent = `green lights ${step}/5`;
+  lightsOutTime = null;
+  raceStarted = false;
+  raceFinished = false;
+
+  controllerStatus.textContent = "hold";
+  tapHelpText.textContent = "do not tap yet";
+  updateTapVisual("armed", "HOLD");
   updateTapAvailability();
-  updateEditBuildAvailability();
 });
 
 socket.on("lights-out", () => {
-  if (!bothPlayersReady) {
-    resetTapState();
-    return;
-  }
+  if (!buildSaved) return;
 
-  raceArmed = true;
-  raceStarted = true;
-  raceFinished = false;
-
-  lightsOutTime = performance.now();
-  lastTapPressAt = 0;
+  countdownActive = false;
   canTap = true;
   alreadyTapped = false;
+  raceStarted = true;
+  raceFinished = false;
+  lightsOutTime = performance.now();
 
-  setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
+  tapHelpText.textContent = "tap now";
+  updateTapVisual("go", "TAP");
   updateTapAvailability();
-  updateEditBuildAvailability();
 });
 
-socket.on("reaction-summary", (summary) => {
+socket.on("race-finished", () => {
   canTap = false;
-  tapButton.disabled = true;
+  countdownActive = false;
+  updateTapAvailability();
 
-  const winnerNormalized =
-    summary.winner === "Player 1"
-      ? "player1"
-      : summary.winner === "Player 2"
-      ? "player2"
-      : summary.winner;
-
-  const singleplayerFalseStart =
-    currentMode === "singleplayer" && summary.winner === "False start";
-
-  if (singleplayerFalseStart) {
-    return;
-  }
-
-  if (winnerNormalized === currentPlayer || currentMode === "singleplayer") {
-    triggerPhoneWinEffects();
+  if (!alreadyTapped) {
+    updateTapVisual("idle", "DONE");
+    tapHelpText.textContent = "race finished";
   }
 });
 
-socket.on("race-finished", (payload) => {
-  raceFinished = true;
-  canTap = false;
-  tapButton.disabled = true;
-  updateEditBuildAvailability();
-
-  if (currentMode === "singleplayer") {
-    if (payload.winner === "False start") {
-      controllerStatus.textContent = "false start";
-    } else {
-      phoneWinnerText.textContent = `${payload.winnerName} finished`;
-      phoneWinnerOverlay.style.display = "flex";
-    }
-    return;
-  }
-
-  if (
-    (currentPlayer === "player1" && payload.winner === "Player 1") ||
-    (currentPlayer === "player2" && payload.winner === "Player 2")
-  ) {
-    phoneWinnerText.textContent = `${payload.winnerName} wins`;
-    phoneWinnerOverlay.style.display = "flex";
-  } else if (payload.winner === "Tie") {
-    controllerStatus.textContent = "tie";
-  } else {
-    controllerStatus.textContent = `${payload.winnerName} wins`;
-  }
-});
-
+builderCard.classList.remove("hidden");
+tapCard.classList.remove("hidden");
+setBuilderLocked(false);
 resetTapState();
-updateEmailFieldVisibility();
 loadParts();
-loadPresets();
