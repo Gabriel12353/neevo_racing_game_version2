@@ -247,10 +247,6 @@ function showExpiredMessage() {
   singlePresetPanel.style.display = "none";
   readyPanel.style.display = "none";
   phoneWinnerOverlay.style.display = "none";
-  playerNameInput.value = "";
-  if (playerEmailInput) {
-    playerEmailInput.value = "";
-  }
   currentPlayer = null;
   currentName = "";
   currentEmail = "";
@@ -849,9 +845,12 @@ socket.on("lights-out", () => {
   raceArmed = true;
   raceStarted = true;
   raceFinished = false;
+
   lightsOutTime = performance.now();
+  lastTapPressAt = 0;
   canTap = true;
   alreadyTapped = false;
+
   setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
   updateTapAvailability();
