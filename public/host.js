@@ -8,6 +8,7 @@ const menuBtn = document.getElementById("menuBtn");
 const leaderboardHoverList = document.getElementById("leaderboardHoverList");
 const leaderboardManageLink = document.getElementById("leaderboardManageLink");
 const leaderboardIconWrap = document.getElementById("leaderboardIconWrap");
+const topRightTools = document.getElementById("topRightTools");
 
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -142,20 +143,22 @@ function updateManageLeaderboardLink() {
     return;
   }
 
-  leaderboardManageLink.href = `/leaderboard-admin.html?v=20&admin=${encodeURIComponent(currentAdminKey)}`;
+  leaderboardManageLink.href = `/leaderboard-admin.html?v=21&admin=${encodeURIComponent(currentAdminKey)}`;
   leaderboardManageLink.style.display = "inline-block";
 }
 
 function applyViewModeUi() {
-  if (isAdminView) {
-    if (leaderboardIconWrap) leaderboardIconWrap.style.display = "block";
-  } else {
-    if (leaderboardIconWrap) leaderboardIconWrap.style.display = "none";
+  if (isPublicView) {
+    if (leaderboardIconWrap) leaderboardIconWrap.remove();
+    return;
   }
 
-  if (isPublicView && menuBtn) {
-    menuBtn.style.display = "none";
+  if (isAdminView) {
+    if (leaderboardIconWrap) leaderboardIconWrap.style.display = "block";
+    return;
   }
+
+  if (leaderboardIconWrap) leaderboardIconWrap.style.display = "none";
 }
 
 function buildJoinUrl(playerKey) {
@@ -717,10 +720,12 @@ socket.on("race-finished", async (payload) => {
 
 applyViewModeUi();
 updateManageLeaderboardLink();
+
 if (isAdminView) {
   loadLeaderboard();
   loadLeaderboardPreview();
 }
+
 loadParts();
 resetBoardForNewRace();
 showModeOverlay();
