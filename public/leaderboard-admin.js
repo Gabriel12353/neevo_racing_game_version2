@@ -1,4 +1,6 @@
 const fullLeaderboardList = document.getElementById("fullLeaderboardList");
+const params = new URLSearchParams(window.location.search);
+const adminKey = params.get("admin");
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -44,10 +46,43 @@ function renderFullLeaderboard(rows) {
               total ${Number(row.totalTime).toFixed(3)}s • reaction ${Number(row.reactionTime).toFixed(3)}s • finish ${Number(row.trackTime).toFixed(3)}s
             </div>
           </div>
+          <button class="leaderboard-delete-btn" data-id="${escapeHtml(row.id)}" type="button">×</button>
         </div>
       `;
     })
     .join("");
+
+  fullLeaderboardList.querySelectorAll(".leaderboard-delete-btn").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!adminKey) {
+        window.alert("Not allowed");
+        return;
+      }
+
+      const id = button.dataset.id;
+      const ok = window.confirm("Remove this leaderboard entry?");
+      if (!ok) return;
+
+      try {
+        const response = await fetch(`/api/leaderboard/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: {
+            "x-admin-key": adminKey
+          }
+        });
+
+        if (!response.ok) {
+          window.alert("Delete failed");
+          return;
+        }
+
+        await loadFullLeaderboard();
+      } catch (error) {
+        console.error(error);
+        window.alert("Delete failed");
+      }
+    });
+  });
 }
 
 loadFullLeaderboard();

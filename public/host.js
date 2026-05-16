@@ -6,6 +6,7 @@ const singleplayerModeBtn = document.getElementById("singleplayerModeBtn");
 const modeOverlayNote = document.getElementById("modeOverlayNote");
 const menuBtn = document.getElementById("menuBtn");
 const leaderboardHoverList = document.getElementById("leaderboardHoverList");
+const leaderboardManageLink = document.getElementById("leaderboardManageLink");
 
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -55,6 +56,7 @@ const lights = [
 let partsData = null;
 let currentSessionId = null;
 let currentGameId = null;
+let currentAdminKey = null;
 let selectedMode = null;
 let modeChosenThisPageLoad = false;
 
@@ -121,6 +123,12 @@ function renderLeaderboardPreview(rows) {
       `;
     })
     .join("");
+}
+
+function updateManageLeaderboardLink() {
+  if (!leaderboardManageLink || !currentAdminKey) return;
+  leaderboardManageLink.href = `/leaderboard-admin.html?v=15&admin=${encodeURIComponent(currentAdminKey)}`;
+  leaderboardManageLink.style.display = "inline-block";
 }
 
 function buildJoinUrl(playerKey) {
@@ -190,7 +198,6 @@ function setMode(mode) {
 }
 
 function resetToMenu() {
-  if (!currentGameId) return;
   location.reload();
 }
 
@@ -577,6 +584,8 @@ socket.on("connect", () => {
 socket.on("host-game-created", (payload) => {
   currentGameId = payload.gameId;
   currentSessionId = payload.sessionId;
+  currentAdminKey = payload.adminKey || null;
+  updateManageLeaderboardLink();
   renderQrCodes();
   renderAll();
 });

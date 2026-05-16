@@ -3,6 +3,7 @@ const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const { CAR_PARTS, buildSelection } = require("./carParts");
 const { simulateRun } = require("./physicsEngine");
 
@@ -68,24 +69,6 @@ app.get("/api/leaderboard", (req, res) => {
 
 app.get("/api/leaderboard-preview", (req, res) => {
   res.json(getTopLeaderboard(3));
-});
-
-app.delete("/api/leaderboard/:id", (req, res) => {
-  try {
-    const id = req.params.id;
-    const entries = readLeaderboard();
-    const nextEntries = entries.filter((entry) => entry.id !== id);
-
-    if (nextEntries.length === entries.length) {
-      return res.status(404).json({ ok: false, message: "Entry not found" });
-    }
-
-    writeLeaderboard(nextEntries);
-    res.json({ ok: true });
-  } catch (error) {
-    console.error("Failed to delete leaderboard entry:", error);
-    res.status(500).json({ ok: false, message: "Delete failed" });
-  }
 });
 
 const SINGLEPLAYER_PRESETS = [
@@ -157,6 +140,10 @@ function createGameId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+function createAdminKey() {
+  return crypto.randomBytes(18).toString("hex");
+}
+
 function createPlayerState() {
   return {
     ready: false,
@@ -173,6 +160,7 @@ function createGameState() {
     gameId: createGameId(),
     mode: null,
     sessionId: createSessionId(),
+    adminKey: createAdminKey(),
     hostSocketId: null,
     players: {
       player1: createPlayerState(),
@@ -448,6 +436,35 @@ function isValidSession(game, sessionId) {
   return !!game && typeof sessionId === "string" && sessionId === game.sessionId;
 }
 
+function isValidAdminKey(adminKey) {
+  if (!adminKey || typeof adminKey !== "string") return false;
+  return Object.values(games).some((game) => game.adminKey === adminKey);
+}
+
+app.delete("/api/leaderboard/:id", (req, res) => {
+  try {
+    const adminKey = req.headers["x-admin-key"];
+
+    if (!isValidAdminKey(adminKey)) {
+      return res.status(403).json({ ok: false, message: "Not allowed" });
+    }
+
+    const id = req.params.id;
+    const entries = readLeaderboard();
+    const nextEntries = entries.filter((entry) => entry.id !== id);
+
+    if (nextEntries.length === entries.length) {
+      return res.status(404).json({ ok: false, message: "Entry not found" });
+    }
+
+    writeLeaderboard(nextEntries);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error("Failed to delete leaderboard entry:", error);
+    res.status(500).json({ ok: false, message: "Delete failed" });
+  }
+});
+
 io.on("connection", (socket) => {
   console.log("socket connected", socket.id);
 
@@ -465,7 +482,8 @@ io.on("connection", (socket) => {
 
     socket.emit("host-game-created", {
       gameId: game.gameId,
-      sessionId: game.sessionId
+      sessionId: game.sessionId,
+      adminKey: game.adminKey
     });
 
     emitStateSync(game);
@@ -480,7 +498,8 @@ io.on("connection", (socket) => {
 
     socket.emit("host-game-created", {
       gameId: game.gameId,
-      sessionId: game.sessionId
+      sessionId: game.sessionId,
+      adminKey: game.adminKey
     });
 
     emitStateSync(game);
