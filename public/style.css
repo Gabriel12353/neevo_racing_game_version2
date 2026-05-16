@@ -1609,3 +1609,27 @@ input[type="email"]::placeholder {
 .preset-preview-image.preset-blue {
   filter: sepia(1) saturate(5.8) hue-rotate(155deg) brightness(1.02);
 }
+
+.preset-preview-image.preset-yellow,
+.full-car-preview.preset-yellow,
+.full-track-car.preset-yellow {
+  filter: sepia(1) saturate(5.2) hue-rotate(-10deg) brightness(1.08);
+}
+
+.preset-preview-image.preset-red,
+.full-car-preview.preset-red,
+.full-track-car.preset-red {
+  filter: sepia(1) saturate(6.5) hue-rotate(-45deg) brightness(1.02);
+}
+
+.preset-preview-image.preset-green,
+.full-car-preview.preset-green,
+.full-track-car.preset-green {
+  filter: sepia(1) saturate(5.4) hue-rotate(45deg) brightness(1.02);
+}
+
+.preset-preview-image.preset-blue,
+.full-car-preview.preset-blue,
+.full-track-car.preset-blue {
+  filter: sepia(1) saturate(5.8) hue-rotate(155deg) brightness(1.02);
+}
