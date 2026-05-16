@@ -72,7 +72,8 @@ let currentState = {
   bothReady: false,
   sessionId: null,
   gameId: null,
-  mode: null
+  mode: null,
+  allowEmailEntry: false
 };
 
 let raceResults = {
@@ -143,13 +144,14 @@ function updateManageLeaderboardLink() {
     return;
   }
 
-  leaderboardManageLink.href = `/leaderboard-admin.html?v=21&admin=${encodeURIComponent(currentAdminKey)}`;
+  leaderboardManageLink.href = `/leaderboard-admin.html?v=23&admin=${encodeURIComponent(currentAdminKey)}`;
   leaderboardManageLink.style.display = "inline-block";
 }
 
 function applyViewModeUi() {
   if (isPublicView) {
     if (leaderboardIconWrap) leaderboardIconWrap.remove();
+    if (menuBtn) menuBtn.style.display = "none";
     return;
   }
 
@@ -163,7 +165,17 @@ function applyViewModeUi() {
 
 function buildJoinUrl(playerKey) {
   if (!currentSessionId || !currentGameId) return "#";
-  return `${window.location.origin}/controller.html?player=${playerKey}&game=${currentGameId}&session=${currentSessionId}`;
+
+  const joinUrl = new URL(`${window.location.origin}/controller.html`);
+  joinUrl.searchParams.set("player", playerKey);
+  joinUrl.searchParams.set("game", currentGameId);
+  joinUrl.searchParams.set("session", currentSessionId);
+
+  if (isAdminView) {
+    joinUrl.searchParams.set("admin", "1");
+  }
+
+  return joinUrl.toString();
 }
 
 function renderQrCodes() {
@@ -239,9 +251,11 @@ singleplayerModeBtn.addEventListener("click", () => {
   setMode("singleplayer");
 });
 
-menuBtn.addEventListener("click", () => {
-  resetToMenu();
-});
+if (menuBtn) {
+  menuBtn.addEventListener("click", () => {
+    resetToMenu();
+  });
+}
 
 async function loadParts() {
   try {
@@ -657,7 +671,8 @@ socket.on("session-cleared", (payload) => {
     bothReady: false,
     sessionId: currentSessionId,
     gameId: currentGameId,
-    mode: selectedMode
+    mode: selectedMode,
+    allowEmailEntry: false
   };
 
   renderQrCodes();
