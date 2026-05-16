@@ -60,6 +60,7 @@ let partsData = null;
 let presetsData = [];
 let currentMode = null;
 let currentGameId = gameIdFromUrl || null;
+let allowEmailEntry = false;
 
 let bothPlayersReady = false;
 let raceArmed = false;
@@ -228,11 +229,13 @@ function resetTapState() {
 }
 
 function updateEmailFieldVisibility() {
-  if (currentMode === "singleplayer") {
+  const shouldShow = currentMode === "multiplayer" && allowEmailEntry;
+
+  if (shouldShow) {
+    emailFieldWrap.style.display = "block";
+  } else {
     emailFieldWrap.style.display = "none";
     playerEmailInput.value = "";
-  } else {
-    emailFieldWrap.style.display = "block";
   }
 }
 
@@ -329,7 +332,7 @@ function joinPlayerWithName() {
 
   currentPlayer = qrPlayer;
   currentName = enteredName;
-  currentEmail = currentMode === "singleplayer" ? "" : enteredEmail;
+  currentEmail = allowEmailEntry && currentMode === "multiplayer" ? enteredEmail : "";
 
   socket.emit("join", {
     gameId: currentGameId,
@@ -720,6 +723,7 @@ socket.on("state-sync", (state) => {
 
   currentMode = state.mode;
   bothPlayersReady = !!state.bothReady;
+  allowEmailEntry = !!state.allowEmailEntry;
   updateEmailFieldVisibility();
 
   if (!currentPlayer) {

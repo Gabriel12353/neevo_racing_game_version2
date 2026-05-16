@@ -209,10 +209,18 @@ function buildPhysicsParams(build) {
 }
 
 function getPublicState(game) {
+  const bothReady =
+    game.mode === "singleplayer"
+      ? game.players.player1.ready
+      : game.players.player1.ready && game.players.player2.ready;
+
+  const allowEmailEntry = game.isAdminHost && game.mode === "multiplayer";
+
   return {
     gameId: game.gameId,
     sessionId: game.sessionId,
     mode: game.mode,
+    allowEmailEntry,
     player1: {
       ready: game.players.player1.ready,
       build: game.players.player1.build,
@@ -223,10 +231,7 @@ function getPublicState(game) {
       build: game.players.player2.build,
       name: game.players.player2.name
     },
-    bothReady:
-      game.mode === "singleplayer"
-        ? game.players.player1.ready
-        : game.players.player1.ready && game.players.player2.ready
+    bothReady
   };
 }
 
