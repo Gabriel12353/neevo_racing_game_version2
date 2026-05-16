@@ -81,15 +81,32 @@ let canTap = false;
 let alreadyTapped = false;
 let lightsOutTime = 0;
 let lastTapPressAt = 0;
+let audioCtxSingleton = null;
 
 function formatMass(value) {
   return `${Number(value).toFixed(1)}g`;
 }
 
 function makeAudioContext() {
+  if (audioCtxSingleton) return audioCtxSingleton;
+
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
-  return new AudioContextClass();
+
+  audioCtxSingleton = new AudioContextClass();
+  return audioCtxSingleton;
+}
+
+async function unlockAudio() {
+  try {
+    const audioCtx = makeAudioContext();
+    if (!audioCtx) return;
+    if (audioCtx.state === "suspended") {
+      await audioCtx.resume();
+    }
+  } catch (error) {
+    console.log("audio unlock failed", error);
+  }
 }
 
 function playTapBuzzer() {
@@ -201,6 +218,8 @@ function updateEditBuildAvailability() {
 function resetTapState() {
   canTap = false;
   alreadyTapped = false;
+  lightsOutTime = 0;
+  lastTapPressAt = 0;
   tapButton.disabled = true;
   setButtonState("ready", "tap");
 }
@@ -471,15 +490,25 @@ function selectPreset() {
   updateTapAvailability();
 }
 
-function handleTapPress(event) {
+function getEventHighResTime(event) {
+  if (event && typeof event.timeStamp === "number" && Number.isFinite(event.timeStamp) && event.timeStamp > 0) {
+    return event.timeStamp;
+  }
+  return performance.now();
+}
+
+async function handleTapPress(event) {
   if (event) {
     event.preventDefault();
     event.stopPropagation();
   }
 
-  const now = Date.now();
-  if (now - lastTapPressAt < 180) return;
-  lastTapPressAt = now;
+  await unlockAudio();
+
+  const pressTime = getEventHighResTime(event);
+
+  if (pressTime - lastTapPressAt < 120) return;
+  lastTapPressAt = pressTime;
 
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
 
@@ -505,11 +534,13 @@ function handleTapPress(event) {
   }
 
   if (alreadyTapped) return;
+  if (!raceStarted) return;
+  if (!lightsOutTime) return;
 
   playTapBuzzer();
   alreadyTapped = true;
 
-  const reactionTime = (performance.now() - lightsOutTime) / 1000;
+  const reactionTime = Math.max(0, (pressTime - lightsOutTime) / 1000);
 
   tapButton.disabled = true;
   setButtonState("ready", `${reactionTime.toFixed(3)}s`);
@@ -522,7 +553,10 @@ function handleTapPress(event) {
   });
 }
 
-joinWithNameBtn.addEventListener("click", joinPlayerWithName);
+joinWithNameBtn.addEventListener("click", async () => {
+  await unlockAudio();
+  joinPlayerWithName();
+});
 
 playerNameInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
@@ -624,12 +658,13 @@ editBuildBtn.addEventListener("click", () => {
   }
 });
 
-tapButton.addEventListener("pointerup", handleTapPress);
+tapButton.addEventListener("pointerdown", handleTapPress);
 tapButton.addEventListener("click", (e) => e.preventDefault());
 tapButton.addEventListener(
   "touchstart",
-  (e) => {
+  async (e) => {
     e.preventDefault();
+    await unlockAudio();
   },
   { passive: false }
 );
@@ -783,9 +818,12 @@ socket.on("lights-out", () => {
   raceArmed = true;
   raceStarted = true;
   raceFinished = false;
+
   lightsOutTime = performance.now();
+  lastTapPressAt = 0;
   canTap = true;
   alreadyTapped = false;
+
   setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
   updateTapAvailability();
