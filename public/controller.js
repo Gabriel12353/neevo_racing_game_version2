@@ -5,6 +5,7 @@ const controllerStatus = document.getElementById("controllerStatus");
 const nameEntryPanel = document.getElementById("nameEntryPanel");
 const playerNameInput = document.getElementById("playerNameInput");
 const playerEmailInput = document.getElementById("playerEmailInput");
+const emailFieldWrap = document.getElementById("emailFieldWrap");
 const joinWithNameBtn = document.getElementById("joinWithNameBtn");
 const builderPanel = document.getElementById("builderPanel");
 const singlePresetPanel = document.getElementById("singlePresetPanel");
@@ -226,6 +227,15 @@ function resetTapState() {
   setButtonState("ready", "tap");
 }
 
+function updateEmailFieldVisibility() {
+  if (currentMode === "singleplayer") {
+    emailFieldWrap.style.display = "none";
+    playerEmailInput.value = "";
+  } else {
+    emailFieldWrap.style.display = "block";
+  }
+}
+
 function showExpiredMessage() {
   nameEntryPanel.style.display = "block";
   builderPanel.style.display = "none";
@@ -245,6 +255,7 @@ function showExpiredMessage() {
   controllerStatus.textContent = "session expired. scan the new qr";
   resetTapState();
   updateEditBuildAvailability();
+  updateEmailFieldVisibility();
 }
 
 function getSelectedBuild() {
@@ -300,14 +311,6 @@ function showReadyPanel() {
   builderPanel.style.display = "none";
   singlePresetPanel.style.display = "none";
   readyPanel.style.display = "block";
-}
-
-function updateEmailFieldVisibility() {
-  if (currentMode === "singleplayer") {
-    playerEmailInput.style.display = "none";
-  } else {
-    playerEmailInput.style.display = "block";
-  }
 }
 
 function joinPlayerWithName() {
@@ -782,9 +785,6 @@ socket.on("session-invalid", () => {
 });
 
 socket.on("session-cleared", (payload) => {
-  if (currentMode === "singleplayer") {
-    playerEmailInput.value = "";
-  }
   if (payload?.sessionId) sessionId = payload.sessionId;
   if (payload?.gameId) currentGameId = payload.gameId;
   showExpiredMessage();
@@ -896,5 +896,6 @@ socket.on("race-finished", (payload) => {
 });
 
 resetTapState();
+updateEmailFieldVisibility();
 loadParts();
 loadPresets();
