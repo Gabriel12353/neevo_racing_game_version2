@@ -1,6 +1,9 @@
 const leaderboardTableBody = document.getElementById("leaderboardTableBody");
 const leaderboardTop3 = document.getElementById("leaderboardTop3");
 
+const params = new URLSearchParams(window.location.search);
+const adminKey = params.get("admin") || "";
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -31,6 +34,7 @@ function renderTop3(rows) {
   leaderboardTop3.innerHTML = [0, 1, 2]
     .map((index) => {
       const row = top3[index];
+
       if (!row) {
         return `
           <div class="leaderboard-mini-card">
@@ -93,15 +97,25 @@ function renderLeaderboard(rows) {
       const entryId = button.dataset.id;
       if (!entryId) return;
 
+      if (!adminKey) {
+        alert("missing admin key");
+        return;
+      }
+
       const ok = window.confirm("remove this leaderboard entry?");
       if (!ok) return;
 
       try {
         const response = await fetch(`/api/leaderboard/${entryId}`, {
-          method: "DELETE"
+          method: "DELETE",
+          headers: {
+            "x-admin-key": adminKey
+          }
         });
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error("delete failed", errorText);
           alert("failed to remove entry");
           return;
         }
