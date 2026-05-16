@@ -149,14 +149,18 @@ function updateManageLeaderboardLink() {
 }
 
 function applyViewModeUi() {
+  const magicPathBtn = document.getElementById("magicPathBtn");
+
   if (isPublicView) {
     if (leaderboardIconWrap) leaderboardIconWrap.remove();
     if (menuBtn) menuBtn.style.display = "none";
+    if (magicPathBtn) magicPathBtn.style.display = "none";
     return;
   }
 
   if (isAdminView) {
     if (leaderboardIconWrap) leaderboardIconWrap.style.display = "block";
+    if (magicPathBtn) magicPathBtn.style.display = "inline-flex";
     return;
   }
 
