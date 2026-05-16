@@ -201,8 +201,6 @@ function updateEditBuildAvailability() {
 function resetTapState() {
   canTap = false;
   alreadyTapped = false;
-  lightsOutTime = 0;
-  lastTapPressAt = 0;
   tapButton.disabled = true;
   setButtonState("ready", "tap");
 }
@@ -479,10 +477,9 @@ function handleTapPress(event) {
     event.stopPropagation();
   }
 
-  const pressTime = performance.now();
-
-  if (pressTime - lastTapPressAt < 180) return;
-  lastTapPressAt = pressTime;
+  const now = Date.now();
+  if (now - lastTapPressAt < 180) return;
+  lastTapPressAt = now;
 
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
 
@@ -508,13 +505,11 @@ function handleTapPress(event) {
   }
 
   if (alreadyTapped) return;
-  if (!raceStarted) return;
-  if (!lightsOutTime) return;
 
   playTapBuzzer();
   alreadyTapped = true;
 
-  const reactionTime = Math.max(0, (pressTime - lightsOutTime) / 1000);
+  const reactionTime = (performance.now() - lightsOutTime) / 1000;
 
   tapButton.disabled = true;
   setButtonState("ready", `${reactionTime.toFixed(3)}s`);
@@ -629,7 +624,7 @@ editBuildBtn.addEventListener("click", () => {
   }
 });
 
-tapButton.addEventListener("pointerdown", handleTapPress);
+tapButton.addEventListener("pointerup", handleTapPress);
 tapButton.addEventListener("click", (e) => e.preventDefault());
 tapButton.addEventListener(
   "touchstart",
@@ -788,12 +783,9 @@ socket.on("lights-out", () => {
   raceArmed = true;
   raceStarted = true;
   raceFinished = false;
-
   lightsOutTime = performance.now();
-  lastTapPressAt = 0;
   canTap = true;
   alreadyTapped = false;
-
   setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
   updateTapAvailability();
