@@ -15,11 +15,11 @@ app.use(express.static(path.join(__dirname, "public"), { index: false }));
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.redirect("/host.html?v=21&public=1");
+  res.redirect("/host.html?v=23&public=1");
 });
 
 app.get("/host-admin", (req, res) => {
-  res.redirect("/host.html?v=21&adminView=1");
+  res.redirect("/host.html?v=23&adminView=1");
 });
 
 app.get("/api/parts", (req, res) => {
@@ -214,7 +214,7 @@ function getPublicState(game) {
       ? game.players.player1.ready
       : game.players.player1.ready && game.players.player2.ready;
 
-  const allowEmailEntry = game.isAdminHost && game.mode === "multiplayer";
+  const allowEmailEntry = game.mode === "multiplayer";
 
   return {
     gameId: game.gameId,

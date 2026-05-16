@@ -1,12 +1,5 @@
 const socket = io();
 
-const params = new URLSearchParams(window.location.search);
-
-const currentPlayer = params.get("player") || params.get("role") || "player1";
-let currentGameId = params.get("game") || "";
-let sessionId = params.get("session") || params.get("sessionId") || "";
-const isAdminController = params.get("admin") === "1";
-
 const controllerTitle = document.getElementById("controllerTitle");
 const controllerStatus = document.getElementById("controllerStatus");
 const nameEntryPanel = document.getElementById("nameEntryPanel");
@@ -55,11 +48,18 @@ const cdSummary = document.getElementById("cdSummary");
 const readyMassText = document.getElementById("readyMassText");
 const readyCdText = document.getElementById("readyCdText");
 
+const params = new URLSearchParams(window.location.search);
+const qrPlayer = params.get("player");
+const gameIdFromUrl = params.get("game");
+let sessionId = params.get("session") || null;
+
+let currentPlayer = null;
 let currentName = "";
 let currentEmail = "";
 let partsData = null;
 let presetsData = [];
 let currentMode = null;
+let currentGameId = gameIdFromUrl || null;
 let allowEmailEntry = false;
 
 let bothPlayersReady = false;
@@ -211,7 +211,7 @@ function setButtonState(state, text) {
 
 function updateTapAvailability() {
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
-  tapButton.disabled = !(sessionId && currentGameId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
+  tapButton.disabled = !(currentPlayer && sessionId && currentGameId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
 }
 
 function updateEditBuildAvailability() {
@@ -229,7 +229,7 @@ function resetTapState() {
 }
 
 function updateEmailFieldVisibility() {
-  const shouldShow = isAdminController && currentMode === "multiplayer";
+  const shouldShow = currentMode === "multiplayer";
 
   if (shouldShow) {
     emailFieldWrap.style.display = "block";
@@ -247,6 +247,11 @@ function showExpiredMessage() {
   singlePresetPanel.style.display = "none";
   readyPanel.style.display = "none";
   phoneWinnerOverlay.style.display = "none";
+  playerNameInput.value = "";
+  if (playerEmailInput) {
+    playerEmailInput.value = "";
+  }
+  currentPlayer = null;
   currentName = "";
   currentEmail = "";
   bothPlayersReady = false;
@@ -257,6 +262,7 @@ function showExpiredMessage() {
   controllerStatus.textContent = "session expired. scan the new qr";
   resetTapState();
   updateEditBuildAvailability();
+  updateEmailFieldVisibility();
 }
 
 function getSelectedBuild() {
@@ -323,13 +329,14 @@ function joinPlayerWithName() {
     return;
   }
 
-  if (!currentPlayer || !sessionId || !currentGameId) {
+  if (!qrPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
 
+  currentPlayer = qrPlayer;
   currentName = enteredName;
-  currentEmail = isAdminController && currentMode === "multiplayer" ? enteredEmail : "";
+  currentEmail = currentMode === "multiplayer" ? enteredEmail : "";
 
   socket.emit("join", {
     gameId: currentGameId,
@@ -522,7 +529,7 @@ async function handleTapPress(event) {
 
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
 
-  if (!sessionId || !currentGameId) return;
+  if (!currentPlayer || !sessionId || !currentGameId) return;
   if (!hasBuild) return;
   if (!bothPlayersReady) return;
   if (!raceArmed) return;
@@ -602,7 +609,7 @@ presetSelectBtn.addEventListener("click", () => selectPreset());
 confirmBuildBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
 
-  if (!sessionId || !currentGameId) {
+  if (!currentPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
@@ -634,7 +641,7 @@ confirmBuildBtn.addEventListener("click", () => {
 confirmPresetBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
 
-  if (!sessionId || !currentGameId) {
+  if (!currentPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
@@ -666,7 +673,7 @@ editBuildBtn.addEventListener("click", () => {
   showBuilderPanel();
   resetTapState();
 
-  if (sessionId && currentGameId) {
+  if (currentPlayer && sessionId && currentGameId) {
     socket.emit("edit-build", {
       gameId: currentGameId,
       player: currentPlayer,
@@ -718,9 +725,9 @@ socket.on("connect", () => {
 });
 
 socket.on("state-sync", (state) => {
-  if (!state) return;
+  if (!state || !state.sessionId) return;
 
-  if (state.sessionId) {
+  if (!sessionId) {
     sessionId = state.sessionId;
   }
 
@@ -731,8 +738,13 @@ socket.on("state-sync", (state) => {
   currentMode = state.mode;
   bothPlayersReady = !!state.bothReady;
   allowEmailEntry = !!state.allowEmailEntry;
-
   updateEmailFieldVisibility();
+
+  if (!currentPlayer) {
+    updateTapAvailability();
+    updateEditBuildAvailability();
+    return;
+  }
 
   const myState = state[currentPlayer];
   if (!myState) {
@@ -741,8 +753,7 @@ socket.on("state-sync", (state) => {
     return;
   }
 
-  if (myState.name && !currentName) {
-    currentName = myState.name;
+  if (myState.name) {
     controllerTitle.textContent = myState.name;
   }
 
@@ -778,12 +789,8 @@ socket.on("state-sync", (state) => {
       controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting";
     }
   } else if (!raceArmed && !raceStarted && !raceFinished) {
-    if (!currentName) {
-      controllerStatus.textContent = "enter your name";
-    } else {
-      controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
-      showBuilderPanel();
-    }
+    controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
+    showBuilderPanel();
   }
 
   updateTapAvailability();
@@ -791,7 +798,7 @@ socket.on("state-sync", (state) => {
 });
 
 socket.on("session-invalid", () => {
-  sessionId = "";
+  sessionId = null;
   showExpiredMessage();
 });
 
@@ -842,12 +849,9 @@ socket.on("lights-out", () => {
   raceArmed = true;
   raceStarted = true;
   raceFinished = false;
-
   lightsOutTime = performance.now();
-  lastTapPressAt = 0;
   canTap = true;
   alreadyTapped = false;
-
   setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
   updateTapAvailability();
