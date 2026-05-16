@@ -2,9 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
   <title>neevo controller</title>
-  <link rel="stylesheet" href="style.css?v=24" />
+  <link rel="stylesheet" href="style.css?v=25" />
 </head>
 <body class="controller-page">
   <div class="controller-shell">
@@ -138,7 +141,10 @@
           <button class="edit-btn" id="editBuildBtn" type="button">change build</button>
         </div>
 
-        <button class="tap-button ready" id="tapButton" type="button">tap</button>
+        <div class="tap-area-wrap">
+          <div class="tap-area-label" id="tapAreaLabel">wait for lights</div>
+          <button class="tap-button ready circular-tap-button" id="tapButton" type="button">tap</button>
+        </div>
       </div>
     </div>
   </div>
@@ -151,6 +157,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="controller.js?v=24"></script>
+  <script src="controller.js?v=25"></script>
 </body>
 </html>

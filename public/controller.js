@@ -14,6 +14,7 @@ const confirmBuildBtn = document.getElementById("confirmBuildBtn");
 const confirmPresetBtn = document.getElementById("confirmPresetBtn");
 const editBuildBtn = document.getElementById("editBuildBtn");
 const tapButton = document.getElementById("tapButton");
+const tapAreaLabel = document.getElementById("tapAreaLabel");
 const phoneWinnerOverlay = document.getElementById("phoneWinnerOverlay");
 const phoneWinnerText = document.getElementById("phoneWinnerText");
 
@@ -53,7 +54,7 @@ const qrPlayer = params.get("player");
 const gameIdFromUrl = params.get("game");
 let sessionId = params.get("session") || null;
 
-let currentPlayer = null;
+let currentPlayer = qrPlayer || null;
 let currentName = "";
 let currentEmail = "";
 let partsData = null;
@@ -86,6 +87,14 @@ let alreadyTapped = false;
 let lightsOutTime = 0;
 let lastTapPressAt = 0;
 let audioCtxSingleton = null;
+
+document.addEventListener(
+  "dblclick",
+  (event) => {
+    event.preventDefault();
+  },
+  { passive: false }
+);
 
 function formatMass(value) {
   return `${Number(value).toFixed(1)}g`;
@@ -211,7 +220,16 @@ function setButtonState(state, text) {
 
 function updateTapAvailability() {
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
-  tapButton.disabled = !(currentPlayer && sessionId && currentGameId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
+  tapButton.disabled = !(
+    currentPlayer &&
+    sessionId &&
+    currentGameId &&
+    hasBuild &&
+    bothPlayersReady &&
+    raceStarted &&
+    canTap &&
+    !alreadyTapped
+  );
 }
 
 function updateEditBuildAvailability() {
@@ -225,11 +243,12 @@ function resetTapState() {
   lightsOutTime = 0;
   lastTapPressAt = 0;
   tapButton.disabled = true;
+  tapAreaLabel.textContent = "wait for lights";
   setButtonState("ready", "tap");
 }
 
 function updateEmailFieldVisibility() {
-  const shouldShow = currentMode === "multiplayer";
+  const shouldShow = currentMode === "multiplayer" || allowEmailEntry;
 
   if (shouldShow) {
     emailFieldWrap.style.display = "block";
@@ -247,7 +266,7 @@ function showExpiredMessage() {
   singlePresetPanel.style.display = "none";
   readyPanel.style.display = "none";
   phoneWinnerOverlay.style.display = "none";
-  currentPlayer = null;
+  currentPlayer = qrPlayer || null;
   currentName = "";
   currentEmail = "";
   bothPlayersReady = false;
@@ -300,6 +319,26 @@ function getCurrentPart(type) {
 function getCurrentPreset() {
   if (!presetsData.length) return null;
   return presetsData[currentIndexes.preset];
+}
+
+function getDisplayPartImage(part) {
+  if (!part || !part.image) return "";
+
+  const shouldUseWhiteAsset =
+    currentMode === "multiplayer" && currentPlayer === "player2";
+
+  if (!shouldUseWhiteAsset) {
+    return part.image;
+  }
+
+  const fileName = part.image.split("/").pop() || "";
+
+  if (fileName.startsWith("w")) {
+    return part.image;
+  }
+
+  const whiteFileName = `w${fileName}`;
+  return part.image.replace(fileName, whiteFileName);
 }
 
 function showBuilderPanel() {
@@ -364,15 +403,15 @@ function renderBuilder() {
 
   if (!front || !body || !rear) return;
 
-  frontImage.src = front.image;
+  frontImage.src = getDisplayPartImage(front);
   frontName.textContent = front.name;
   frontStats.textContent = `${formatMass(front.mass)} • Cd ${front.cd.toFixed(3)}`;
 
-  bodyImage.src = body.image;
+  bodyImage.src = getDisplayPartImage(body);
   bodyName.textContent = body.name;
   bodyStats.textContent = `${formatMass(body.mass)} • Cd ${body.cd.toFixed(3)}`;
 
-  rearImage.src = rear.image;
+  rearImage.src = getDisplayPartImage(rear);
   rearName.textContent = rear.name;
   rearStats.textContent = `${formatMass(rear.mass)} • Cd ${rear.cd.toFixed(3)}`;
 
@@ -535,7 +574,8 @@ async function handleTapPress(event) {
 
     playTapBuzzer();
     alreadyTapped = true;
-    setButtonState("false-start", "false start");
+    tapAreaLabel.textContent = "false start";
+    setButtonState("false-start", "false");
     tapButton.disabled = true;
 
     socket.emit("reaction-result", {
@@ -556,8 +596,9 @@ async function handleTapPress(event) {
 
   const reactionTime = Math.max(0, (pressTime - lightsOutTime) / 1000);
 
+  tapAreaLabel.textContent = `${reactionTime.toFixed(3)}s`;
   tapButton.disabled = true;
-  setButtonState("ready", `${reactionTime.toFixed(3)}s`);
+  setButtonState("ready", "done");
 
   socket.emit("reaction-result", {
     gameId: currentGameId,
@@ -736,20 +777,11 @@ socket.on("state-sync", (state) => {
   allowEmailEntry = !!state.allowEmailEntry;
   updateEmailFieldVisibility();
 
-  if (!currentPlayer) {
-    updateTapAvailability();
-    updateEditBuildAvailability();
-    return;
-  }
+  const myState = qrPlayer ? state[qrPlayer] : null;
 
-  const myState = state[currentPlayer];
-  if (!myState) {
-    updateTapAvailability();
-    updateEditBuildAvailability();
-    return;
-  }
-
-  if (myState.name) {
+  if (myState && myState.name && !currentName) {
+    currentName = myState.name;
+    currentPlayer = qrPlayer;
     controllerTitle.textContent = myState.name;
   }
 
@@ -759,7 +791,7 @@ socket.on("state-sync", (state) => {
     editBuildBtn.textContent = "change build";
   }
 
-  if (myState.ready && myState.build) {
+  if (myState && myState.ready && myState.build) {
     if (currentMode === "singleplayer") {
       const presetIndex = presetsData.findIndex((item) => item.id === myState.build.presetId);
       if (presetIndex >= 0) {
@@ -784,9 +816,6 @@ socket.on("state-sync", (state) => {
     if (!raceArmed && !raceStarted && !raceFinished) {
       controllerStatus.textContent = bothPlayersReady ? "ready to start" : "waiting";
     }
-  } else if (!raceArmed && !raceStarted && !raceFinished) {
-    controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
-    showBuilderPanel();
   }
 
   updateTapAvailability();
@@ -820,6 +849,7 @@ socket.on("race-started", () => {
   raceStarted = false;
   raceFinished = false;
   controllerStatus.textContent = "wait for lights out";
+  tapAreaLabel.textContent = "wait for lights";
   updateTapAvailability();
   updateEditBuildAvailability();
 });
@@ -832,6 +862,7 @@ socket.on("light-step", (step) => {
   alreadyTapped = false;
   tapButton.disabled = true;
   controllerStatus.textContent = `green lights ${step}/5`;
+  tapAreaLabel.textContent = "do not tap";
   updateTapAvailability();
   updateEditBuildAvailability();
 });
@@ -851,6 +882,7 @@ socket.on("lights-out", () => {
   canTap = true;
   alreadyTapped = false;
 
+  tapAreaLabel.textContent = "tap now";
   setButtonState("go", "tap");
   controllerStatus.textContent = "tap now";
   updateTapAvailability();
@@ -889,6 +921,7 @@ socket.on("race-finished", (payload) => {
   if (currentMode === "singleplayer") {
     if (payload.winner === "False start") {
       controllerStatus.textContent = "false start";
+      tapAreaLabel.textContent = "false start";
     } else {
       phoneWinnerText.textContent = `${payload.winnerName} finished`;
       phoneWinnerOverlay.style.display = "flex";
@@ -904,8 +937,10 @@ socket.on("race-finished", (payload) => {
     phoneWinnerOverlay.style.display = "flex";
   } else if (payload.winner === "Tie") {
     controllerStatus.textContent = "tie";
+    tapAreaLabel.textContent = "tie";
   } else {
     controllerStatus.textContent = `${payload.winnerName} wins`;
+    tapAreaLabel.textContent = `${payload.winnerName} wins`;
   }
 });
 
