@@ -15,7 +15,11 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "host.html"));
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+app.get("/host-admin", (req, res) => {
+  res.redirect("/host.html?v=16");
 });
 
 app.get("/api/parts", (req, res) => {
