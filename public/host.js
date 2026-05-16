@@ -142,7 +142,7 @@ function updateManageLeaderboardLink() {
     return;
   }
 
-  leaderboardManageLink.href = `/leaderboard-admin.html?v=19&admin=${encodeURIComponent(currentAdminKey)}`;
+  leaderboardManageLink.href = `/leaderboard-admin.html?v=20&admin=${encodeURIComponent(currentAdminKey)}`;
   leaderboardManageLink.style.display = "inline-block";
 }
 

@@ -15,11 +15,11 @@ app.use(express.static(path.join(__dirname, "public"), { index: false }));
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.redirect("/host.html?v=19&public=1");
+  res.redirect("/host.html?v=20&public=1");
 });
 
 app.get("/host-admin", (req, res) => {
-  res.redirect("/host.html?v=19&adminView=1");
+  res.redirect("/host.html?v=20&adminView=1");
 });
 
 app.get("/api/parts", (req, res) => {
