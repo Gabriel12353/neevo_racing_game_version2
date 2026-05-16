@@ -153,6 +153,10 @@ function createSessionId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function createGameId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
 function createPlayerState() {
   return {
     ready: false,
@@ -164,92 +168,29 @@ function createPlayerState() {
   };
 }
 
-let players = {
-  player1: createPlayerState(),
-  player2: createPlayerState()
-};
-
-let currentMode = null;
-let raceStarted = false;
-let raceFinished = false;
-let raceArmed = false;
-let currentSessionId = createSessionId();
-let raceTimers = [];
-
-function clearRaceTimers() {
-  raceTimers.forEach((timer) => clearTimeout(timer));
-  raceTimers = [];
-}
-
-function getPublicState() {
+function createGameState() {
   return {
-    sessionId: currentSessionId,
-    mode: currentMode,
-    player1: {
-      ready: players.player1.ready,
-      build: players.player1.build,
-      name: players.player1.name
+    gameId: createGameId(),
+    mode: null,
+    sessionId: createSessionId(),
+    hostSocketId: null,
+    players: {
+      player1: createPlayerState(),
+      player2: createPlayerState()
     },
-    player2: {
-      ready: players.player2.ready,
-      build: players.player2.build,
-      name: players.player2.name
-    },
-    bothReady:
-      currentMode === "singleplayer"
-        ? players.player1.ready
-        : players.player1.ready && players.player2.ready
+    raceStarted: false,
+    raceFinished: false,
+    raceArmed: false,
+    raceTimers: []
   };
 }
 
-function emitStateSync() {
-  io.emit("state-sync", getPublicState());
-}
+const games = {};
 
-function resetRaceOnly() {
-  clearRaceTimers();
-  raceStarted = false;
-  raceFinished = false;
-  raceArmed = false;
-  players.player1.result = null;
-  players.player2.result = null;
-}
-
-function resetPlayersKeepMode() {
-  clearRaceTimers();
-  players = {
-    player1: createPlayerState(),
-    player2: createPlayerState()
-  };
-  raceStarted = false;
-  raceFinished = false;
-  raceArmed = false;
-  currentSessionId = createSessionId();
-}
-
-function clearGameKeepMode() {
-  clearRaceTimers();
-  players = {
-    player1: createPlayerState(),
-    player2: createPlayerState()
-  };
-  raceStarted = false;
-  raceFinished = false;
-  raceArmed = false;
-  currentSessionId = createSessionId();
-}
-
-function fullClearGame() {
-  clearRaceTimers();
-  players = {
-    player1: createPlayerState(),
-    player2: createPlayerState()
-  };
-  currentMode = null;
-  raceStarted = false;
-  raceFinished = false;
-  raceArmed = false;
-  currentSessionId = createSessionId();
+function clearRaceTimers(game) {
+  if (!game) return;
+  game.raceTimers.forEach((timer) => clearTimeout(timer));
+  game.raceTimers = [];
 }
 
 function buildPhysicsParams(build) {
@@ -273,8 +214,67 @@ function buildPhysicsParams(build) {
   };
 }
 
-function buildScoredResult(playerKey) {
-  const player = players[playerKey];
+function getPublicState(game) {
+  return {
+    gameId: game.gameId,
+    sessionId: game.sessionId,
+    mode: game.mode,
+    player1: {
+      ready: game.players.player1.ready,
+      build: game.players.player1.build,
+      name: game.players.player1.name
+    },
+    player2: {
+      ready: game.players.player2.ready,
+      build: game.players.player2.build,
+      name: game.players.player2.name
+    },
+    bothReady:
+      game.mode === "singleplayer"
+        ? game.players.player1.ready
+        : game.players.player1.ready && game.players.player2.ready
+  };
+}
+
+function emitStateSync(game) {
+  io.to(game.gameId).emit("state-sync", getPublicState(game));
+}
+
+function resetRaceOnly(game) {
+  clearRaceTimers(game);
+  game.raceStarted = false;
+  game.raceFinished = false;
+  game.raceArmed = false;
+  game.players.player1.result = null;
+  game.players.player2.result = null;
+}
+
+function resetPlayersKeepMode(game) {
+  clearRaceTimers(game);
+  game.players = {
+    player1: createPlayerState(),
+    player2: createPlayerState()
+  };
+  game.sessionId = createSessionId();
+  game.raceStarted = false;
+  game.raceFinished = false;
+  game.raceArmed = false;
+}
+
+function clearGameKeepMode(game) {
+  clearRaceTimers(game);
+  game.players = {
+    player1: createPlayerState(),
+    player2: createPlayerState()
+  };
+  game.sessionId = createSessionId();
+  game.raceStarted = false;
+  game.raceFinished = false;
+  game.raceArmed = false;
+}
+
+function buildScoredResult(game, playerKey) {
+  const player = game.players[playerKey];
   const result = player.result;
 
   if (!result || !player.build) return null;
@@ -315,11 +315,11 @@ function buildScoredResult(playerKey) {
   };
 }
 
-function getWinner(summary) {
+function getWinner(game, summary) {
   const p1 = summary.player1;
   const p2 = summary.player2;
 
-  if (currentMode === "singleplayer") {
+  if (game.mode === "singleplayer") {
     if (!p1) return "No result";
     if (p1.type === "false-start") return "False start";
     if (p1.type === "valid") return "Player 1";
@@ -352,8 +352,8 @@ function getWinner(summary) {
   return "No result";
 }
 
-function storeMultiplayerWinner(summary) {
-  if (currentMode !== "multiplayer") return;
+function storeMultiplayerWinner(game, summary) {
+  if (game.mode !== "multiplayer") return;
 
   let winnerResult = null;
   let winnerLabel = null;
@@ -382,50 +382,46 @@ function storeMultiplayerWinner(summary) {
   });
 }
 
-function maybeFinishRace() {
-  if (raceFinished) return;
+function maybeFinishRace(game) {
+  if (game.raceFinished) return;
 
-  if (currentMode === "singleplayer") {
-    if (!players.player1.result) return;
+  if (game.mode === "singleplayer") {
+    if (!game.players.player1.result) return;
   } else {
-    if (!players.player1.result || !players.player2.result) return;
+    if (!game.players.player1.result || !game.players.player2.result) return;
   }
 
-  clearRaceTimers();
-  raceFinished = true;
-  raceStarted = false;
-  raceArmed = false;
+  clearRaceTimers(game);
+  game.raceFinished = true;
+  game.raceStarted = false;
+  game.raceArmed = false;
 
   const summary = {
-    player1: buildScoredResult("player1"),
-    player2: currentMode === "multiplayer" ? buildScoredResult("player2") : null,
-    mode: currentMode
+    player1: buildScoredResult(game, "player1"),
+    player2: game.mode === "multiplayer" ? buildScoredResult(game, "player2") : null,
+    mode: game.mode
   };
 
-  summary.winner = getWinner(summary);
+  summary.winner = getWinner(game, summary);
   summary.winnerName =
-    currentMode === "singleplayer"
-      ? players.player1.name || "player"
+    game.mode === "singleplayer"
+      ? game.players.player1.name || "player"
       : summary.winner === "Player 1"
-      ? players.player1.name || "player 1"
+      ? game.players.player1.name || "player 1"
       : summary.winner === "Player 2"
-      ? players.player2.name || "player 2"
+      ? game.players.player2.name || "player 2"
       : summary.winner === "Tie"
       ? "tie"
       : "no result";
 
-  storeMultiplayerWinner(summary);
+  storeMultiplayerWinner(game, summary);
 
-  io.emit("reaction-summary", summary);
-  io.emit("race-finished", {
+  io.to(game.gameId).emit("reaction-summary", summary);
+  io.to(game.gameId).emit("race-finished", {
     winner: summary.winner,
     winnerName: summary.winnerName,
-    mode: currentMode
+    mode: game.mode
   });
-}
-
-function isValidSession(sessionId) {
-  return typeof sessionId === "string" && sessionId === currentSessionId;
 }
 
 function buildSingleplayerPreset(presetId) {
@@ -444,150 +440,212 @@ function buildSingleplayerPreset(presetId) {
   };
 }
 
+function getGame(gameId) {
+  return typeof gameId === "string" ? games[gameId] : null;
+}
+
+function isValidSession(game, sessionId) {
+  return !!game && typeof sessionId === "string" && sessionId === game.sessionId;
+}
+
 io.on("connection", (socket) => {
-  console.log("A user connected", socket.id, "| session:", currentSessionId);
-  socket.emit("state-sync", getPublicState());
+  console.log("socket connected", socket.id);
+
+  socket.on("host-create-game", () => {
+    const game = createGameState();
+
+    while (games[game.gameId]) {
+      game.gameId = createGameId();
+    }
+
+    game.hostSocketId = socket.id;
+    games[game.gameId] = game;
+
+    socket.join(game.gameId);
+
+    socket.emit("host-game-created", {
+      gameId: game.gameId,
+      sessionId: game.sessionId
+    });
+
+    emitStateSync(game);
+  });
+
+  socket.on("host-join-game", (payload) => {
+    const game = getGame(payload?.gameId);
+    if (!game) return;
+
+    game.hostSocketId = socket.id;
+    socket.join(game.gameId);
+
+    socket.emit("host-game-created", {
+      gameId: game.gameId,
+      sessionId: game.sessionId
+    });
+
+    emitStateSync(game);
+  });
 
   socket.on("set-mode", (payload) => {
+    const game = getGame(payload?.gameId);
     const mode = payload?.mode;
+
+    if (!game) return;
     if (mode !== "multiplayer" && mode !== "singleplayer") return;
 
-    currentMode = mode;
-    resetPlayersKeepMode();
+    game.mode = mode;
+    resetPlayersKeepMode(game);
 
-    io.emit("session-cleared", {
-      sessionId: currentSessionId,
-      mode: currentMode,
+    io.to(game.gameId).emit("session-cleared", {
+      gameId: game.gameId,
+      sessionId: game.sessionId,
+      mode: game.mode,
       keepMode: true
     });
-    emitStateSync();
+
+    emitStateSync(game);
   });
 
   socket.on("join", (payload) => {
+    const game = getGame(payload?.gameId);
     const role = payload?.role;
     const name = payload?.name || "";
     const email = payload?.email || "";
     const sessionId = payload?.sessionId;
 
-    if (!players[role]) return;
-
-    if (currentMode === "singleplayer" && role !== "player1") {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game) {
+      socket.emit("session-invalid", { sessionId: null });
       return;
     }
 
-    if (!isValidSession(sessionId)) {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game.players[role]) return;
+
+    if (game.mode === "singleplayer" && role !== "player1") {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
       return;
     }
 
-    players[role].name = String(name).trim().slice(0, 20);
-    players[role].email = String(email).trim().slice(0, 120);
-    players[role].socketId = socket.id;
+    if (!isValidSession(game, sessionId)) {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
+      return;
+    }
 
-    emitStateSync();
+    game.players[role].name = String(name).trim().slice(0, 20);
+    game.players[role].email = String(email).trim().slice(0, 120);
+    game.players[role].socketId = socket.id;
+
+    socket.join(game.gameId);
+    emitStateSync(game);
   });
 
   socket.on("save-build", (data) => {
-    if (!data || !data.player || !data.selection) return;
-    if (!players[data.player]) return;
-    if (currentMode !== "multiplayer") return;
+    const game = getGame(data?.gameId);
 
-    if (!isValidSession(data.sessionId)) {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game) return;
+    if (!data || !data.player || !data.selection) return;
+    if (!game.players[data.player]) return;
+    if (game.mode !== "multiplayer") return;
+
+    if (!isValidSession(game, data.sessionId)) {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
       return;
     }
 
     const build = buildSelection(data.selection);
 
-    players[data.player].build = build;
-    players[data.player].ready = true;
-    players[data.player].result = null;
+    game.players[data.player].build = build;
+    game.players[data.player].ready = true;
+    game.players[data.player].result = null;
 
-    emitStateSync();
+    emitStateSync(game);
   });
 
   socket.on("save-singleplayer-car", (data) => {
-    if (!data || !data.player || !data.presetId) return;
-    if (!players[data.player]) return;
-    if (currentMode !== "singleplayer") return;
+    const game = getGame(data?.gameId);
 
-    if (!isValidSession(data.sessionId)) {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game) return;
+    if (!data || !data.player || !data.presetId) return;
+    if (!game.players[data.player]) return;
+    if (game.mode !== "singleplayer") return;
+
+    if (!isValidSession(game, data.sessionId)) {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
       return;
     }
 
     const build = buildSingleplayerPreset(data.presetId);
     if (!build) return;
 
-    players[data.player].build = build;
-    players[data.player].ready = true;
-    players[data.player].result = null;
+    game.players[data.player].build = build;
+    game.players[data.player].ready = true;
+    game.players[data.player].result = null;
 
-    emitStateSync();
+    emitStateSync(game);
   });
 
   socket.on("edit-build", (data) => {
-    if (!data || !data.player) return;
-    if (!players[data.player]) return;
-    if (raceArmed || raceStarted || raceFinished) return;
+    const game = getGame(data?.gameId);
 
-    if (!isValidSession(data.sessionId)) {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game) return;
+    if (!data || !data.player) return;
+    if (!game.players[data.player]) return;
+    if (game.raceArmed || game.raceStarted || game.raceFinished) return;
+
+    if (!isValidSession(game, data.sessionId)) {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
       return;
     }
 
-    players[data.player].ready = false;
-    players[data.player].build = null;
-    players[data.player].result = null;
+    game.players[data.player].ready = false;
+    game.players[data.player].build = null;
+    game.players[data.player].result = null;
 
-    emitStateSync();
+    emitStateSync(game);
   });
 
-  socket.on("clear-game", () => {
-    clearGameKeepMode();
-    io.emit("session-cleared", {
-      sessionId: currentSessionId,
-      mode: currentMode,
+  socket.on("clear-game", (data) => {
+    const game = getGame(data?.gameId);
+    if (!game) return;
+
+    clearGameKeepMode(game);
+
+    io.to(game.gameId).emit("session-cleared", {
+      gameId: game.gameId,
+      sessionId: game.sessionId,
+      mode: game.mode,
       keepMode: true
     });
-    emitStateSync();
+
+    emitStateSync(game);
   });
 
-  socket.on("reset-all", () => {
-    fullClearGame();
-    io.emit("session-cleared", {
-      sessionId: currentSessionId,
-      mode: null,
-      keepMode: false
-    });
-    emitStateSync();
-  });
+  socket.on("start-race", (data) => {
+    const game = getGame(data?.gameId);
+    if (!game) return;
 
-  socket.on("start-race", () => {
-    if (currentMode === "singleplayer") {
-      if (!players.player1.ready) return;
+    if (game.mode === "singleplayer") {
+      if (!game.players.player1.ready) return;
     } else {
-      if (!(players.player1.ready && players.player2.ready)) return;
+      if (!(game.players.player1.ready && game.players.player2.ready)) return;
     }
 
-    resetRaceOnly();
+    resetRaceOnly(game);
 
-    raceArmed = true;
-    raceFinished = false;
-    raceStarted = false;
+    game.raceArmed = true;
+    game.raceFinished = false;
+    game.raceStarted = false;
 
-    io.emit("reset-race");
-    io.emit("race-started");
+    io.to(game.gameId).emit("reset-race");
+    io.to(game.gameId).emit("race-started");
 
     const randomDelay = 200 + Math.floor(Math.random() * 2801);
 
     const scheduleStep = (delayMs, stepNumber) => {
       const timer = setTimeout(() => {
-        if (!raceArmed || raceFinished) return;
-        io.emit("light-step", stepNumber);
+        if (!game.raceArmed || game.raceFinished) return;
+        io.to(game.gameId).emit("light-step", stepNumber);
       }, delayMs);
-      raceTimers.push(timer);
+      game.raceTimers.push(timer);
     };
 
     scheduleStep(1000, 1);
@@ -597,53 +655,56 @@ io.on("connection", (socket) => {
     scheduleStep(5000, 5);
 
     const lightsOutTimer = setTimeout(() => {
-      if (!raceArmed || raceFinished) return;
-      raceStarted = true;
-      io.emit("lights-out");
+      if (!game.raceArmed || game.raceFinished) return;
+      game.raceStarted = true;
+      io.to(game.gameId).emit("lights-out");
     }, 5000 + randomDelay);
 
-    raceTimers.push(lightsOutTimer);
+    game.raceTimers.push(lightsOutTimer);
   });
 
   socket.on("reaction-result", (data) => {
-    if (raceFinished) return;
-    if (!data || !data.player || !data.type) return;
-    if (!players[data.player]) return;
+    const game = getGame(data?.gameId);
 
-    if (!isValidSession(data.sessionId)) {
-      socket.emit("session-invalid", { sessionId: currentSessionId });
+    if (!game) return;
+    if (game.raceFinished) return;
+    if (!data || !data.player || !data.type) return;
+    if (!game.players[data.player]) return;
+
+    if (!isValidSession(game, data.sessionId)) {
+      socket.emit("session-invalid", { sessionId: game.sessionId });
       return;
     }
 
-    if (!players[data.player].ready || !players[data.player].build) return;
-    if (players[data.player].result !== null) return;
+    if (!game.players[data.player].ready || !game.players[data.player].build) return;
+    if (game.players[data.player].result !== null) return;
 
     if (data.type === "false-start") {
-      if (!raceArmed || raceStarted) return;
+      if (!game.raceArmed || game.raceStarted) return;
 
-      players[data.player].result = {
+      game.players[data.player].result = {
         type: "false-start",
         reactionTime: null
       };
 
-      maybeFinishRace();
+      maybeFinishRace(game);
       return;
     }
 
-    if (!raceStarted) return;
+    if (!game.raceStarted) return;
 
     if (data.type === "valid" && typeof data.reactionTime === "number") {
-      players[data.player].result = {
+      game.players[data.player].result = {
         type: "valid",
         reactionTime: data.reactionTime
       };
 
-      maybeFinishRace();
+      maybeFinishRace(game);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log("A user disconnected", socket.id);
+    console.log("socket disconnected", socket.id);
   });
 });
 

@@ -54,6 +54,7 @@ const lights = [
 
 let partsData = null;
 let currentSessionId = null;
+let currentGameId = null;
 let selectedMode = null;
 let modeChosenThisPageLoad = false;
 
@@ -62,6 +63,7 @@ let currentState = {
   player2: {},
   bothReady: false,
   sessionId: null,
+  gameId: null,
   mode: null
 };
 
@@ -83,8 +85,7 @@ async function loadLeaderboard() {
   try {
     const response = await fetch("/api/leaderboard");
     if (!response.ok) return;
-    const rows = await response.json();
-    console.log("leaderboard loaded", rows.length);
+    await response.json();
   } catch (error) {
     console.error("failed to load leaderboard", error);
   }
@@ -123,12 +124,12 @@ function renderLeaderboardPreview(rows) {
 }
 
 function buildJoinUrl(playerKey) {
-  if (!currentSessionId) return "#";
-  return `${window.location.origin}/controller.html?player=${playerKey}&session=${currentSessionId}`;
+  if (!currentSessionId || !currentGameId) return "#";
+  return `${window.location.origin}/controller.html?player=${playerKey}&game=${currentGameId}&session=${currentSessionId}`;
 }
 
 function renderQrCodes() {
-  if (!currentSessionId) return;
+  if (!currentSessionId || !currentGameId) return;
 
   if (selectedMode === "singleplayer") {
     player1Qr.innerHTML = '<canvas id="qrCanvas1"></canvas>';
@@ -177,18 +178,20 @@ function hideModeOverlay() {
 }
 
 function setMode(mode) {
+  if (!currentGameId) return;
   selectedMode = mode;
   modeChosenThisPageLoad = true;
   modeOverlayNote.textContent = mode === "multiplayer" ? "multiplayer selected" : "singleplayer selected";
   hideModeOverlay();
   clearBtn.disabled = false;
-  socket.emit("set-mode", { mode });
+  socket.emit("set-mode", { gameId: currentGameId, mode });
   renderQrCodes();
   renderAll();
 }
 
 function resetToMenu() {
-  socket.emit("reset-all");
+  if (!currentGameId) return;
+  location.reload();
 }
 
 multiplayerModeBtn.addEventListener("click", () => {
@@ -558,26 +561,33 @@ function resetBoardForNewRace() {
 }
 
 startRaceBtn.addEventListener("click", () => {
-  if (!selectedMode) return;
-  socket.emit("start-race");
+  if (!selectedMode || !currentGameId) return;
+  socket.emit("start-race", { gameId: currentGameId });
 });
 
 clearBtn.addEventListener("click", () => {
-  socket.emit("clear-game");
+  if (!currentGameId) return;
+  socket.emit("clear-game", { gameId: currentGameId });
 });
 
 socket.on("connect", () => {
-  console.log("host connected");
+  socket.emit("host-create-game");
+});
+
+socket.on("host-game-created", (payload) => {
+  currentGameId = payload.gameId;
+  currentSessionId = payload.sessionId;
+  renderQrCodes();
+  renderAll();
 });
 
 socket.on("state-sync", (state) => {
   currentState = state || currentState;
 
-  if (state && state.sessionId) {
-    currentSessionId = state.sessionId;
-  }
+  if (state?.sessionId) currentSessionId = state.sessionId;
+  if (state?.gameId) currentGameId = state.gameId;
 
-  if (modeChosenThisPageLoad && state && state.mode) {
+  if (modeChosenThisPageLoad && state?.mode) {
     selectedMode = state.mode;
     hideModeOverlay();
     clearBtn.disabled = false;
@@ -588,9 +598,8 @@ socket.on("state-sync", (state) => {
 });
 
 socket.on("session-cleared", (payload) => {
-  if (payload && payload.sessionId) {
-    currentSessionId = payload.sessionId;
-  }
+  if (payload?.sessionId) currentSessionId = payload.sessionId;
+  if (payload?.gameId) currentGameId = payload.gameId;
 
   if (payload?.keepMode) {
     selectedMode = payload.mode || selectedMode;
@@ -606,6 +615,7 @@ socket.on("session-cleared", (payload) => {
     player2: {},
     bothReady: false,
     sessionId: currentSessionId,
+    gameId: currentGameId,
     mode: selectedMode
   };
 

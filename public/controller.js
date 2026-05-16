@@ -49,6 +49,7 @@ const readyCdText = document.getElementById("readyCdText");
 
 const params = new URLSearchParams(window.location.search);
 const qrPlayer = params.get("player");
+const gameIdFromUrl = params.get("game");
 let sessionId = params.get("session") || null;
 
 let currentPlayer = null;
@@ -57,6 +58,7 @@ let currentEmail = "";
 let partsData = null;
 let presetsData = [];
 let currentMode = null;
+let currentGameId = gameIdFromUrl || null;
 
 let bothPlayersReady = false;
 let raceArmed = false;
@@ -207,7 +209,7 @@ function setButtonState(state, text) {
 
 function updateTapAvailability() {
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
-  tapButton.disabled = !(currentPlayer && sessionId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
+  tapButton.disabled = !(currentPlayer && sessionId && currentGameId && hasBuild && bothPlayersReady && raceStarted && canTap && !alreadyTapped);
 }
 
 function updateEditBuildAvailability() {
@@ -317,7 +319,7 @@ function joinPlayerWithName() {
     return;
   }
 
-  if (!qrPlayer || !sessionId) {
+  if (!qrPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
@@ -327,6 +329,7 @@ function joinPlayerWithName() {
   currentEmail = currentMode === "singleplayer" ? "" : enteredEmail;
 
   socket.emit("join", {
+    gameId: currentGameId,
     role: currentPlayer,
     name: currentName,
     email: currentEmail,
@@ -512,7 +515,7 @@ async function handleTapPress(event) {
 
   const hasBuild = currentMode === "singleplayer" ? !!getSelectedPreset() : !!getSelectedBuild();
 
-  if (!currentPlayer || !sessionId) return;
+  if (!currentPlayer || !sessionId || !currentGameId) return;
   if (!hasBuild) return;
   if (!bothPlayersReady) return;
   if (!raceArmed) return;
@@ -526,6 +529,7 @@ async function handleTapPress(event) {
     tapButton.disabled = true;
 
     socket.emit("reaction-result", {
+      gameId: currentGameId,
       player: currentPlayer,
       type: "false-start",
       sessionId
@@ -546,6 +550,7 @@ async function handleTapPress(event) {
   setButtonState("ready", `${reactionTime.toFixed(3)}s`);
 
   socket.emit("reaction-result", {
+    gameId: currentGameId,
     player: currentPlayer,
     type: "valid",
     reactionTime,
@@ -588,7 +593,7 @@ presetSelectBtn.addEventListener("click", () => selectPreset());
 confirmBuildBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
 
-  if (!currentPlayer || !sessionId) {
+  if (!currentPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
@@ -600,6 +605,7 @@ confirmBuildBtn.addEventListener("click", () => {
   }
 
   socket.emit("save-build", {
+    gameId: currentGameId,
     player: currentPlayer,
     selection: {
       frontIndex: selectedIndexes.front,
@@ -619,7 +625,7 @@ confirmBuildBtn.addEventListener("click", () => {
 confirmPresetBtn.addEventListener("click", () => {
   if (raceArmed || raceStarted || raceFinished) return;
 
-  if (!currentPlayer || !sessionId) {
+  if (!currentPlayer || !sessionId || !currentGameId) {
     showExpiredMessage();
     return;
   }
@@ -631,6 +637,7 @@ confirmPresetBtn.addEventListener("click", () => {
   }
 
   socket.emit("save-singleplayer-car", {
+    gameId: currentGameId,
     player: currentPlayer,
     presetId: preset.id,
     sessionId
@@ -650,8 +657,9 @@ editBuildBtn.addEventListener("click", () => {
   showBuilderPanel();
   resetTapState();
 
-  if (currentPlayer && sessionId) {
+  if (currentPlayer && sessionId && currentGameId) {
     socket.emit("edit-build", {
+      gameId: currentGameId,
       player: currentPlayer,
       sessionId
     });
@@ -701,6 +709,10 @@ socket.on("state-sync", (state) => {
 
   if (!sessionId) {
     sessionId = state.sessionId;
+  }
+
+  if (state.gameId) {
+    currentGameId = state.gameId;
   }
 
   currentMode = state.mode;
@@ -769,11 +781,12 @@ socket.on("session-invalid", () => {
   showExpiredMessage();
 });
 
-socket.on("session-cleared", () => {
+socket.on("session-cleared", (payload) => {
   if (currentMode === "singleplayer") {
     playerEmailInput.value = "";
   }
-  sessionId = null;
+  if (payload?.sessionId) sessionId = payload.sessionId;
+  if (payload?.gameId) currentGameId = payload.gameId;
   showExpiredMessage();
 });
 
