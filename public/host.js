@@ -7,6 +7,7 @@ const modeOverlayNote = document.getElementById("modeOverlayNote");
 const menuBtn = document.getElementById("menuBtn");
 const leaderboardHoverList = document.getElementById("leaderboardHoverList");
 const leaderboardManageLink = document.getElementById("leaderboardManageLink");
+const leaderboardIconWrap = document.getElementById("leaderboardIconWrap");
 
 const player1Panel = document.getElementById("player1Panel");
 const player2Panel = document.getElementById("player2Panel");
@@ -53,6 +54,10 @@ const lights = [
   document.getElementById("light5")
 ];
 
+const urlParams = new URLSearchParams(window.location.search);
+const isPublicView = urlParams.get("public") === "1";
+const isAdminView = urlParams.get("adminView") === "1";
+
 let partsData = null;
 let currentSessionId = null;
 let currentGameId = null;
@@ -84,6 +89,8 @@ function escapeHtml(value) {
 }
 
 async function loadLeaderboard() {
+  if (!isAdminView) return;
+
   try {
     const response = await fetch("/api/leaderboard");
     if (!response.ok) return;
@@ -94,6 +101,8 @@ async function loadLeaderboard() {
 }
 
 async function loadLeaderboardPreview() {
+  if (!isAdminView) return;
+
   try {
     const response = await fetch("/api/leaderboard-preview");
     if (!response.ok) return;
@@ -126,9 +135,27 @@ function renderLeaderboardPreview(rows) {
 }
 
 function updateManageLeaderboardLink() {
-  if (!leaderboardManageLink || !currentAdminKey) return;
-  leaderboardManageLink.href = `/leaderboard-admin.html?v=15&admin=${encodeURIComponent(currentAdminKey)}`;
+  if (!leaderboardManageLink) return;
+
+  if (!isAdminView || !currentAdminKey) {
+    leaderboardManageLink.style.display = "none";
+    return;
+  }
+
+  leaderboardManageLink.href = `/leaderboard-admin.html?v=19&admin=${encodeURIComponent(currentAdminKey)}`;
   leaderboardManageLink.style.display = "inline-block";
+}
+
+function applyViewModeUi() {
+  if (isAdminView) {
+    if (leaderboardIconWrap) leaderboardIconWrap.style.display = "block";
+  } else {
+    if (leaderboardIconWrap) leaderboardIconWrap.style.display = "none";
+  }
+
+  if (isPublicView && menuBtn) {
+    menuBtn.style.display = "none";
+  }
 }
 
 function buildJoinUrl(playerKey) {
@@ -578,7 +605,9 @@ clearBtn.addEventListener("click", () => {
 });
 
 socket.on("connect", () => {
-  socket.emit("host-create-game");
+  socket.emit("host-create-game", {
+    hostType: isAdminView ? "admin" : "public"
+  });
 });
 
 socket.on("host-game-created", (payload) => {
@@ -679,12 +708,19 @@ socket.on("race-finished", async (payload) => {
   winnerBanner.textContent = `${winnerName} wins`;
   hostStatus.textContent = "race finished";
   celebrateWinner();
-  await loadLeaderboard();
-  await loadLeaderboardPreview();
+
+  if (isAdminView) {
+    await loadLeaderboard();
+    await loadLeaderboardPreview();
+  }
 });
 
+applyViewModeUi();
+updateManageLeaderboardLink();
+if (isAdminView) {
+  loadLeaderboard();
+  loadLeaderboardPreview();
+}
 loadParts();
-loadLeaderboard();
-loadLeaderboardPreview();
 resetBoardForNewRace();
 showModeOverlay();

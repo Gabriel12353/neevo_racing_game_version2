@@ -15,11 +15,11 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+  res.redirect("/host.html?v=19&public=1");
 });
 
 app.get("/host-admin", (req, res) => {
-  res.redirect("/host.html?v=16");
+  res.redirect("/host.html?v=19&adminView=1");
 });
 
 app.get("/api/parts", (req, res) => {
@@ -159,13 +159,15 @@ function createPlayerState() {
   };
 }
 
-function createGameState() {
+function createGameState(options = {}) {
   return {
     gameId: createGameId(),
     mode: null,
     sessionId: createSessionId(),
     adminKey: createAdminKey(),
     hostSocketId: null,
+    isAdminHost: !!options.isAdminHost,
+    saveToLeaderboard: !!options.saveToLeaderboard,
     players: {
       player1: createPlayerState(),
       player2: createPlayerState()
@@ -346,6 +348,7 @@ function getWinner(game, summary) {
 
 function storeMultiplayerWinner(game, summary) {
   if (game.mode !== "multiplayer") return;
+  if (!game.saveToLeaderboard) return;
 
   let winnerResult = null;
   let winnerLabel = null;
@@ -442,7 +445,7 @@ function isValidSession(game, sessionId) {
 
 function isValidAdminKey(adminKey) {
   if (!adminKey || typeof adminKey !== "string") return false;
-  return Object.values(games).some((game) => game.adminKey === adminKey);
+  return Object.values(games).some((game) => game.adminKey === adminKey && game.isAdminHost);
 }
 
 app.delete("/api/leaderboard/:id", (req, res) => {
@@ -472,8 +475,13 @@ app.delete("/api/leaderboard/:id", (req, res) => {
 io.on("connection", (socket) => {
   console.log("socket connected", socket.id);
 
-  socket.on("host-create-game", () => {
-    const game = createGameState();
+  socket.on("host-create-game", (payload) => {
+    const isAdminHost = payload?.hostType === "admin";
+
+    const game = createGameState({
+      isAdminHost,
+      saveToLeaderboard: isAdminHost
+    });
 
     while (games[game.gameId]) {
       game.gameId = createGameId();
@@ -487,7 +495,9 @@ io.on("connection", (socket) => {
     socket.emit("host-game-created", {
       gameId: game.gameId,
       sessionId: game.sessionId,
-      adminKey: game.adminKey
+      adminKey: game.adminKey,
+      isAdminHost: game.isAdminHost,
+      saveToLeaderboard: game.saveToLeaderboard
     });
 
     emitStateSync(game);
@@ -503,7 +513,9 @@ io.on("connection", (socket) => {
     socket.emit("host-game-created", {
       gameId: game.gameId,
       sessionId: game.sessionId,
-      adminKey: game.adminKey
+      adminKey: game.adminKey,
+      isAdminHost: game.isAdminHost,
+      saveToLeaderboard: game.saveToLeaderboard
     });
 
     emitStateSync(game);
