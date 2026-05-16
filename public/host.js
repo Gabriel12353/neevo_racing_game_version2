@@ -171,8 +171,8 @@ function buildJoinUrl(playerKey) {
   joinUrl.searchParams.set("game", currentGameId);
   joinUrl.searchParams.set("session", currentSessionId);
 
-  if (isAdminView) {
-    joinUrl.searchParams.set("admin", "1");
+  if (selectedMode) {
+    joinUrl.searchParams.set("mode", selectedMode);
   }
 
   return joinUrl.toString();

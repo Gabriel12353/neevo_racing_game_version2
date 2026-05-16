@@ -53,15 +53,15 @@ const params = new URLSearchParams(window.location.search);
 const qrPlayer = params.get("player");
 const gameIdFromUrl = params.get("game");
 let sessionId = params.get("session") || null;
+let currentMode = params.get("mode") || null;
 
 let currentPlayer = qrPlayer || null;
 let currentName = "";
 let currentEmail = "";
 let partsData = null;
 let presetsData = [];
-let currentMode = null;
 let currentGameId = gameIdFromUrl || null;
-let allowEmailEntry = false;
+let allowEmailEntry = currentMode === "multiplayer";
 
 let bothPlayersReady = false;
 let raceArmed = false;
@@ -88,13 +88,9 @@ let lightsOutTime = 0;
 let lastTapPressAt = 0;
 let audioCtxSingleton = null;
 
-document.addEventListener(
-  "dblclick",
-  (event) => {
-    event.preventDefault();
-  },
-  { passive: false }
-);
+document.addEventListener("dblclick", (event) => {
+  event.preventDefault();
+}, { passive: false });
 
 function formatMass(value) {
   return `${Number(value).toFixed(1)}g`;
@@ -102,10 +98,8 @@ function formatMass(value) {
 
 function makeAudioContext() {
   if (audioCtxSingleton) return audioCtxSingleton;
-
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return null;
-
   audioCtxSingleton = new AudioContextClass();
   return audioCtxSingleton;
 }
@@ -189,7 +183,6 @@ function playVictorySound() {
 
 function firePhoneConfetti() {
   if (typeof confetti !== "function") return;
-
   confetti({
     particleCount: 120,
     spread: 90,
@@ -249,14 +242,9 @@ function resetTapState() {
 
 function updateEmailFieldVisibility() {
   const shouldShow = currentMode === "multiplayer" || allowEmailEntry;
-
-  if (shouldShow) {
-    emailFieldWrap.style.display = "block";
-  } else {
-    emailFieldWrap.style.display = "none";
-    if (playerEmailInput) {
-      playerEmailInput.value = "";
-    }
+  emailFieldWrap.style.display = shouldShow ? "block" : "none";
+  if (!shouldShow && playerEmailInput) {
+    playerEmailInput.value = "";
   }
 }
 
@@ -294,15 +282,12 @@ function getSelectedBuild() {
   const body = partsData.body[selectedIndexes.body];
   const rear = partsData.rear[selectedIndexes.rear];
 
-  const totalMass = Number((front.mass + body.mass + rear.mass).toFixed(1));
-  const totalCd = Number((front.cd + body.cd + rear.cd).toFixed(3));
-
   return {
     front,
     body,
     rear,
-    totalMass,
-    totalCd
+    totalMass: Number((front.mass + body.mass + rear.mass).toFixed(1)),
+    totalCd: Number((front.cd + body.cd + rear.cd).toFixed(3))
   };
 }
 
@@ -323,19 +308,11 @@ function getCurrentPreset() {
 
 function getDisplayPartImage(part) {
   if (!part || !part.image) return "";
-
-  const shouldUseWhiteAsset =
-    currentMode === "multiplayer" && currentPlayer === "player2";
-
-  if (!shouldUseWhiteAsset) {
-    return part.image;
-  }
+  const shouldUseWhiteAsset = currentMode === "multiplayer" && currentPlayer === "player2";
+  if (!shouldUseWhiteAsset) return part.image;
 
   const fileName = part.image.split("/").pop() || "";
-
-  if (fileName.startsWith("w")) {
-    return part.image;
-  }
+  if (fileName.startsWith("w")) return part.image;
 
   const whiteFileName = `w${fileName}`;
   return part.image.replace(fileName, whiteFileName);
@@ -343,7 +320,6 @@ function getDisplayPartImage(part) {
 
 function showBuilderPanel() {
   if (raceArmed || raceStarted || raceFinished) return;
-
   builderPanel.style.display = currentMode === "multiplayer" ? "block" : "none";
   singlePresetPanel.style.display = currentMode === "singleplayer" ? "block" : "none";
   readyPanel.style.display = "none";
@@ -382,12 +358,9 @@ function joinPlayerWithName() {
   });
 
   controllerTitle.textContent = currentName;
-  controllerStatus.textContent =
-    currentMode === "singleplayer" ? "choose your car" : "choose your components";
-
+  controllerStatus.textContent = currentMode === "singleplayer" ? "choose your car" : "choose your components";
   nameEntryPanel.style.display = "none";
   showBuilderPanel();
-
   renderBuilder();
   renderPresetChooser();
   updateTapAvailability();
@@ -400,7 +373,6 @@ function renderBuilder() {
   const front = getCurrentPart("front");
   const body = getCurrentPart("body");
   const rear = getCurrentPart("rear");
-
   if (!front || !body || !rear) return;
 
   frontImage.src = getDisplayPartImage(front);
@@ -434,20 +406,17 @@ function updateSelectedUi() {
   bodySelectBtn.textContent = bodySelected ? "selected" : "select body";
   rearSelectBtn.textContent = rearSelected ? "selected" : "select rear";
 
-  frontSelectedText.textContent =
-    selectedIndexes.front === null
-      ? "not selected"
-      : `selected: ${partsData.front[selectedIndexes.front].name}`;
+  frontSelectedText.textContent = selectedIndexes.front === null
+    ? "not selected"
+    : `selected: ${partsData.front[selectedIndexes.front].name}`;
 
-  bodySelectedText.textContent =
-    selectedIndexes.body === null
-      ? "not selected"
-      : `selected: ${partsData.body[selectedIndexes.body].name}`;
+  bodySelectedText.textContent = selectedIndexes.body === null
+    ? "not selected"
+    : `selected: ${partsData.body[selectedIndexes.body].name}`;
 
-  rearSelectedText.textContent =
-    selectedIndexes.rear === null
-      ? "not selected"
-      : `selected: ${partsData.rear[selectedIndexes.rear].name}`;
+  rearSelectedText.textContent = selectedIndexes.rear === null
+    ? "not selected"
+    : `selected: ${partsData.rear[selectedIndexes.rear].name}`;
 }
 
 function updateSummary() {
@@ -471,7 +440,6 @@ function updateSummary() {
 
 function renderPresetChooser() {
   if (!presetsData.length) return;
-
   const preset = getCurrentPreset();
   if (!preset) return;
 
@@ -484,10 +452,9 @@ function renderPresetChooser() {
   presetSelectBtn.classList.toggle("selected", presetSelected);
   presetSelectBtn.textContent = presetSelected ? "selected" : "select car";
 
-  presetSelectedText.textContent =
-    selectedIndexes.preset === null
-      ? "not selected"
-      : `selected: ${presetsData[selectedIndexes.preset].name}`;
+  presetSelectedText.textContent = selectedIndexes.preset === null
+    ? "not selected"
+    : `selected: ${presetsData[selectedIndexes.preset].name}`;
 
   const selectedPreset = getSelectedPreset();
   if (selectedPreset) {
@@ -505,7 +472,6 @@ function cyclePart(type, direction) {
 
   const maxIndex = partsData[type].length - 1;
   currentIndexes[type] += direction;
-
   if (currentIndexes[type] < 0) currentIndexes[type] = maxIndex;
   if (currentIndexes[type] > maxIndex) currentIndexes[type] = 0;
 
@@ -518,7 +484,6 @@ function cyclePreset(direction) {
 
   const maxIndex = presetsData.length - 1;
   currentIndexes.preset += direction;
-
   if (currentIndexes.preset < 0) currentIndexes.preset = maxIndex;
   if (currentIndexes.preset > maxIndex) currentIndexes.preset = 0;
 
@@ -527,7 +492,6 @@ function cyclePreset(direction) {
 
 function selectPart(type) {
   if (raceArmed || raceStarted || raceFinished) return;
-
   selectedIndexes[type] = currentIndexes[type];
   updateSelectedUi();
   updateSummary();
@@ -536,14 +500,18 @@ function selectPart(type) {
 
 function selectPreset() {
   if (raceArmed || raceStarted || raceFinished) return;
-
   selectedIndexes.preset = currentIndexes.preset;
   renderPresetChooser();
   updateTapAvailability();
 }
 
 function getEventHighResTime(event) {
-  if (event && typeof event.timeStamp === "number" && Number.isFinite(event.timeStamp) && event.timeStamp > 0) {
+  if (
+    event &&
+    typeof event.timeStamp === "number" &&
+    Number.isFinite(event.timeStamp) &&
+    event.timeStamp > 0
+  ) {
     return event.timeStamp;
   }
   return performance.now();
@@ -556,7 +524,6 @@ async function handleTapPress(event) {
   }
 
   await unlockAudio();
-
   const pressTime = getEventHighResTime(event);
 
   if (pressTime - lastTapPressAt < 120) return;
@@ -615,16 +582,12 @@ joinWithNameBtn.addEventListener("click", async () => {
 });
 
 playerNameInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    joinPlayerWithName();
-  }
+  if (e.key === "Enter") joinPlayerWithName();
 });
 
 if (playerEmailInput) {
   playerEmailInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      joinPlayerWithName();
-    }
+    if (e.key === "Enter") joinPlayerWithName();
   });
 }
 
@@ -721,14 +684,10 @@ editBuildBtn.addEventListener("click", () => {
 
 tapButton.addEventListener("pointerdown", handleTapPress);
 tapButton.addEventListener("click", (e) => e.preventDefault());
-tapButton.addEventListener(
-  "touchstart",
-  async (e) => {
-    e.preventDefault();
-    await unlockAudio();
-  },
-  { passive: false }
-);
+tapButton.addEventListener("touchstart", async (e) => {
+  e.preventDefault();
+  await unlockAudio();
+}, { passive: false });
 
 async function loadParts() {
   try {
@@ -764,17 +723,12 @@ socket.on("connect", () => {
 socket.on("state-sync", (state) => {
   if (!state || !state.sessionId) return;
 
-  if (!sessionId) {
-    sessionId = state.sessionId;
-  }
+  if (!sessionId) sessionId = state.sessionId;
+  if (state.gameId) currentGameId = state.gameId;
 
-  if (state.gameId) {
-    currentGameId = state.gameId;
-  }
-
-  currentMode = state.mode;
+  currentMode = state.mode || currentMode;
   bothPlayersReady = !!state.bothReady;
-  allowEmailEntry = !!state.allowEmailEntry;
+  allowEmailEntry = !!state.allowEmailEntry || currentMode === "multiplayer";
   updateEmailFieldVisibility();
 
   const myState = qrPlayer ? state[qrPlayer] : null;
@@ -876,7 +830,6 @@ socket.on("lights-out", () => {
   raceArmed = true;
   raceStarted = true;
   raceFinished = false;
-
   lightsOutTime = performance.now();
   lastTapPressAt = 0;
   canTap = true;
@@ -903,9 +856,7 @@ socket.on("reaction-summary", (summary) => {
   const singleplayerFalseStart =
     currentMode === "singleplayer" && summary.winner === "False start";
 
-  if (singleplayerFalseStart) {
-    return;
-  }
+  if (singleplayerFalseStart) return;
 
   if (winnerNormalized === currentPlayer || currentMode === "singleplayer") {
     triggerPhoneWinEffects();
