@@ -1109,3 +1109,371 @@ body {
     font-size: 2.4rem;
   }
 }
+
+/*Light Color Theme*/
+
+/* ============================= */
+/* neevo light portfolio refresh */
+/* ============================= */
+
+:root {
+  --neevo-bg: #f0ede4;
+  --neevo-orange: #f17a21;
+  --neevo-cream: #f0ede4;
+  --neevo-dark: #222222;
+  --neevo-soft: #fbf8ef;
+  --neevo-line: rgba(34, 34, 34, 0.18);
+  --neevo-orange-soft: rgba(241, 122, 33, 0.12);
+}
+
+/* global */
+body {
+  background: var(--neevo-bg);
+  color: var(--neevo-dark);
+}
+
+/* host screen */
+.host-page {
+  background:
+    radial-gradient(circle at top, rgba(241, 122, 33, 0.10), transparent 28%),
+    linear-gradient(180deg, #f7f3ea 0%, #f0ede4 100%);
+  color: var(--neevo-dark);
+}
+
+.host-wrapper {
+  padding: 18px 14px;
+}
+
+/* centre content */
+.game-title,
+.game-subtitle,
+.host-status {
+  color: var(--neevo-dark);
+}
+
+.game-subtitle {
+  opacity: 0.78;
+}
+
+.winner-banner {
+  color: var(--neevo-orange);
+}
+
+/* lights */
+.race-light {
+  border: 4px solid rgba(34, 34, 34, 0.22);
+  background: #e7e1d4;
+  box-shadow:
+    inset 0 0 16px rgba(34, 34, 34, 0.16),
+    0 2px 8px rgba(34, 34, 34, 0.08);
+}
+
+.active-light {
+  background: #31d66b;
+  border-color: rgba(34, 34, 34, 0.18);
+  box-shadow: 0 0 18px rgba(49, 214, 107, 0.55);
+}
+
+.go-light {
+  background: #e7e1d4;
+}
+
+/* player side panels */
+.player-panel {
+  background: rgba(251, 248, 239, 0.92);
+  border: 2px solid rgba(241, 122, 33, 0.65);
+  box-shadow: 0 12px 30px rgba(34, 34, 34, 0.08);
+}
+
+.ready-pill {
+  color: var(--neevo-dark);
+  border: 2px solid rgba(34, 34, 34, 0.18);
+  background: rgba(34, 34, 34, 0.04);
+}
+
+.ready-pill.ready-on {
+  background: rgba(49, 214, 107, 0.14);
+  border-color: #31d66b;
+  color: #16833d;
+}
+
+.player-name {
+  color: var(--neevo-orange);
+}
+
+.mini-build-line,
+.scan-text {
+  color: var(--neevo-dark);
+}
+
+/* QR */
+.qr-box {
+  background: #ffffff;
+  border: 2px solid rgba(34, 34, 34, 0.12);
+  box-shadow: 0 8px 18px rgba(34, 34, 34, 0.08);
+}
+
+/* stat cards */
+.stat-card {
+  background: rgba(255, 255, 255, 0.48);
+  border: 2px solid rgba(241, 122, 33, 0.42);
+}
+
+.stat-label {
+  color: var(--neevo-orange);
+}
+
+.stat-value {
+  color: var(--neevo-dark);
+}
+
+/* tracks */
+.tracks-wrap {
+  max-width: 1320px;
+}
+
+.track-lane {
+  border: 4px solid var(--neevo-dark);
+  background:
+    linear-gradient(90deg, rgba(241, 122, 33, 0.08), rgba(255, 255, 255, 0.55) 34%, rgba(255, 255, 255, 0.25)),
+    #f8f5ed;
+  box-shadow: 0 12px 28px rgba(34, 34, 34, 0.10);
+}
+
+.lane-label {
+  color: var(--neevo-dark);
+}
+
+.finish-line {
+  background:
+    linear-gradient(
+      to bottom,
+      var(--neevo-orange) 0%,
+      var(--neevo-orange) 12.5%,
+      var(--neevo-bg) 12.5%,
+      var(--neevo-bg) 25%,
+      var(--neevo-orange) 25%,
+      var(--neevo-orange) 37.5%,
+      var(--neevo-bg) 37.5%,
+      var(--neevo-bg) 50%,
+      var(--neevo-orange) 50%,
+      var(--neevo-orange) 62.5%,
+      var(--neevo-bg) 62.5%,
+      var(--neevo-bg) 75%,
+      var(--neevo-orange) 75%,
+      var(--neevo-orange) 87.5%,
+      var(--neevo-bg) 87.5%,
+      var(--neevo-bg) 100%
+    );
+}
+
+/* buttons */
+.main-btn,
+.secondary-btn,
+.normal-action-btn,
+.part-select-btn,
+.arrow-btn,
+.menu-btn,
+.magicpath-btn,
+.leaderboard-icon-btn,
+.leaderboard-back-btn {
+  background: var(--neevo-orange);
+  color: #ffffff;
+}
+
+.main-btn:hover,
+.secondary-btn:hover,
+.normal-action-btn:hover,
+.part-select-btn:hover,
+.arrow-btn:hover,
+.menu-btn:hover,
+.magicpath-btn:hover,
+.leaderboard-icon-btn:hover,
+.leaderboard-back-btn:hover {
+  background: #ff8a35;
+}
+
+.main-btn:disabled {
+  opacity: 0.45;
+}
+
+/* top icons and tooltips */
+.host-help-icon,
+.leaderboard-icon-btn {
+  background: var(--neevo-orange);
+  color: #ffffff;
+}
+
+.host-help-tooltip,
+.leaderboard-hover-card {
+  background: rgba(251, 248, 239, 0.98);
+  border: 1px solid rgba(241, 122, 33, 0.7);
+  color: var(--neevo-dark);
+  box-shadow: 0 12px 26px rgba(34, 34, 34, 0.12);
+}
+
+.host-help-tooltip h3,
+.leaderboard-hover-title,
+.leaderboard-hover-rank,
+.leaderboard-open-link {
+  color: var(--neevo-orange);
+}
+
+.host-help-tooltip p,
+.leaderboard-hover-name {
+  color: var(--neevo-dark);
+}
+
+.leaderboard-hover-row {
+  background: rgba(34, 34, 34, 0.04);
+}
+
+.leaderboard-hover-time {
+  color: var(--neevo-dark);
+}
+
+/* controller page */
+.controller-page {
+  background: var(--neevo-bg);
+  color: var(--neevo-dark);
+}
+
+.controller-wrapper h1,
+#controllerStatus {
+  color: var(--neevo-dark);
+}
+
+.builder-panel,
+.ready-panel,
+.name-entry-panel {
+  background: rgba(251, 248, 239, 0.88);
+  border: 2px solid rgba(241, 122, 33, 0.34);
+  box-shadow: 0 12px 28px rgba(34, 34, 34, 0.10);
+}
+
+.builder-label,
+.build-summary-title,
+.ready-title {
+  color: var(--neevo-orange);
+}
+
+.part-card,
+.build-summary-card {
+  background: rgba(255, 255, 255, 0.45);
+  border: 2px solid rgba(241, 122, 33, 0.22);
+}
+
+.part-name,
+.part-stats,
+.build-summary-line,
+.part-selected-text {
+  color: var(--neevo-dark);
+}
+
+.player-name-input {
+  background: rgba(255, 255, 255, 0.56);
+  border: 2px solid rgba(241, 122, 33, 0.35);
+  color: var(--neevo-dark);
+}
+
+.player-name-input::placeholder {
+  color: rgba(34, 34, 34, 0.45);
+}
+
+#tapButton {
+  background: var(--neevo-orange);
+  color: var(--neevo-dark);
+  border: 4px solid rgba(34, 34, 34, 0.14);
+  box-shadow:
+    0 0 0 8px rgba(241, 122, 33, 0.10),
+    0 12px 26px rgba(34, 34, 34, 0.18);
+}
+
+#tapButton.go {
+  background: var(--neevo-dark);
+  color: var(--neevo-bg);
+}
+
+#tapButton.false-start {
+  background: #b9382f;
+  color: #ffffff;
+}
+
+/* mode overlay */
+.mode-overlay {
+  background: rgba(240, 237, 228, 0.94);
+  backdrop-filter: blur(4px);
+}
+
+.mode-card {
+  background: rgba(251, 248, 239, 0.98);
+  border: 2px solid rgba(241, 122, 33, 0.65);
+  box-shadow: 0 16px 50px rgba(34, 34, 34, 0.18);
+}
+
+.mode-title,
+.mode-subtitle,
+.mode-note {
+  color: var(--neevo-dark);
+}
+
+.mode-btn-primary {
+  background: var(--neevo-orange);
+  color: #ffffff;
+}
+
+.mode-btn-secondary {
+  background: rgba(34, 34, 34, 0.05);
+  color: var(--neevo-dark);
+  border: 2px solid rgba(34, 34, 34, 0.16);
+}
+
+.mode-btn-secondary:hover {
+  background: rgba(241, 122, 33, 0.12);
+  border-color: rgba(241, 122, 33, 0.55);
+  color: var(--neevo-dark);
+}
+
+/* leaderboard page */
+.leaderboard-page {
+  background:
+    radial-gradient(circle at top, rgba(241, 122, 33, 0.10), transparent 26%),
+    linear-gradient(180deg, #f7f3ea 0%, #f0ede4 100%);
+  color: var(--neevo-dark);
+}
+
+.leaderboard-page-title,
+.leaderboard-page-subtitle {
+  color: var(--neevo-dark);
+}
+
+.leaderboard-full-row {
+  background: rgba(251, 248, 239, 0.88);
+  border: 1px solid rgba(241, 122, 33, 0.25);
+  box-shadow: 0 8px 18px rgba(34, 34, 34, 0.06);
+}
+
+.leaderboard-full-rank {
+  color: var(--neevo-orange);
+}
+
+.leaderboard-full-name,
+.leaderboard-full-email,
+.leaderboard-full-meta {
+  color: var(--neevo-dark);
+}
+
+.leaderboard-empty {
+  background: rgba(34, 34, 34, 0.04);
+  color: var(--neevo-dark);
+}
+
+/* optional: portfolio-style orange divider line under the top logo area */
+.host-center::after {
+  content: "";
+  width: min(760px, 82vw);
+  height: 3px;
+  background: var(--neevo-orange);
+  opacity: 0.9;
+  margin: 4px 0 8px;
+}
