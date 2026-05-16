@@ -153,18 +153,20 @@ function applyViewModeUi() {
 
   if (isPublicView) {
     if (leaderboardIconWrap) leaderboardIconWrap.remove();
-    if (menuBtn) menuBtn.style.display = "none";
+    if (menuBtn) menuBtn.style.display = "inline-flex";
     if (magicPathBtn) magicPathBtn.style.display = "none";
     return;
   }
 
   if (isAdminView) {
     if (leaderboardIconWrap) leaderboardIconWrap.style.display = "block";
+    if (menuBtn) menuBtn.style.display = "inline-flex";
     if (magicPathBtn) magicPathBtn.style.display = "inline-flex";
     return;
   }
 
   if (leaderboardIconWrap) leaderboardIconWrap.style.display = "none";
+  if (menuBtn) menuBtn.style.display = "inline-flex";
 }
 
 function buildJoinUrl(playerKey) {
