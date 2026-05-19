@@ -1633,3 +1633,177 @@ input[type="email"]::placeholder {
 .full-track-car.preset-blue {
   filter: sepia(1) saturate(5.8) hue-rotate(155deg) brightness(1.02);
 }
+
+/* off-white theme override */
+
+:root {
+  --neevo-bg: #f0ede4;
+  --neevo-bg-2: #e7e1d4;
+  --neevo-panel: #f8f5ee;
+  --neevo-panel-2: #efe9dc;
+  --neevo-border: rgba(241, 122, 33, 0.55);
+  --neevo-border-soft: rgba(34, 34, 34, 0.12);
+  --neevo-orange: #f17a21;
+  --neevo-orange-2: #ff9a4d;
+  --neevo-cream: #222222;
+  --neevo-cream-dim: rgba(34, 34, 34, 0.72);
+  --neevo-text: #222222;
+  --neevo-text-soft: rgba(34, 34, 34, 0.72);
+  --neevo-shadow: 0 14px 34px rgba(100, 74, 43, 0.12);
+}
+
+html,
+body {
+  background: var(--neevo-bg) !important;
+  color: var(--neevo-text) !important;
+}
+
+body::before {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(241, 122, 33, 0.14), transparent 34%),
+    linear-gradient(90deg, rgba(241, 122, 33, 0.05), transparent 18%, transparent 82%, rgba(241, 122, 33, 0.05)) !important;
+}
+
+.player-panel,
+.controller-card,
+.builder-section,
+.ready-panel,
+.name-entry-panel,
+.single-preset-panel,
+.mode-card,
+.leaderboard-mini-card,
+.leaderboard-table-wrap,
+.leaderboard-hover-card,
+.host-help-tooltip {
+  background: linear-gradient(180deg, rgba(248, 245, 238, 0.98), rgba(239, 233, 220, 0.98)) !important;
+  color: var(--neevo-text) !important;
+  border-color: rgba(241, 122, 33, 0.5) !important;
+  box-shadow: var(--neevo-shadow) !important;
+}
+
+.part-card,
+.preset-card,
+.stat-card,
+.selector-card,
+.build-summary-card {
+  background: rgba(255, 255, 255, 0.55) !important;
+  border-color: rgba(34, 34, 34, 0.08) !important;
+  color: var(--neevo-text) !important;
+}
+
+.ready-pill {
+  background: rgba(34, 34, 34, 0.04) !important;
+  border-color: rgba(34, 34, 34, 0.14) !important;
+  color: var(--neevo-text) !important;
+}
+
+.ready-pill.ready-on {
+  background: rgba(58, 181, 97, 0.12) !important;
+  border-color: rgba(58, 181, 97, 0.7) !important;
+  color: #1d6b35 !important;
+}
+
+.game-title,
+.host-status,
+.lane-label,
+.controller-title,
+.controller-subtitle,
+.part-name,
+.preset-name,
+.stat-value,
+.leaderboard-mini-name,
+.leaderboard-table tbody td,
+.mode-title {
+  color: var(--neevo-text) !important;
+}
+
+.game-subtitle,
+.controller-status,
+.mode-subtitle,
+.mode-note,
+.mini-build-line,
+.scan-text,
+.part-stats,
+.preset-stats,
+.selected-text,
+.summary-line,
+.ready-summary-line,
+.leaderboard-hover-time,
+.leaderboard-empty,
+.host-help-tooltip p {
+  color: var(--neevo-text-soft) !important;
+}
+
+.player-name,
+.stat-label,
+.leaderboard-hover-title,
+.leaderboard-hover-rank,
+.leaderboard-open-link,
+.host-help-tooltip h3,
+.controller-title,
+.tap-area-label,
+.leaderboard-mini-rank,
+.leaderboard-mini-time,
+.leaderboard-table thead th {
+  color: var(--neevo-orange) !important;
+}
+
+input[type="text"],
+input[type="email"] {
+  background: rgba(255, 255, 255, 0.75) !important;
+  color: var(--neevo-text) !important;
+  border-color: rgba(34, 34, 34, 0.14) !important;
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder {
+  color: rgba(34, 34, 34, 0.45) !important;
+}
+
+.track-lane {
+  background:
+    linear-gradient(90deg, rgba(241, 122, 33, 0.07), transparent 18%, transparent 82%, rgba(241, 122, 33, 0.06)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(239, 233, 220, 0.9)) !important;
+  border-color: rgba(34, 34, 34, 0.14) !important;
+}
+
+.race-light {
+  background: rgba(34, 34, 34, 0.08) !important;
+  border-color: rgba(34, 34, 34, 0.18) !important;
+  box-shadow: inset 0 0 10px rgba(34, 34, 34, 0.08) !important;
+}
+
+.qr-box {
+  background: rgba(255, 255, 255, 0.95) !important;
+}
+
+.main-btn.secondary-btn,
+.edit-btn {
+  background: rgba(34, 34, 34, 0.08) !important;
+  border: 1px solid rgba(34, 34, 34, 0.14) !important;
+  color: var(--neevo-text) !important;
+}
+
+.part-nav-btn,
+.preset-nav-btn,
+.selector-arrow-btn {
+  background: rgba(255, 255, 255, 0.72) !important;
+  color: var(--neevo-orange) !important;
+  border: 1px solid rgba(34, 34, 34, 0.1) !important;
+}
+
+.selector-preview {
+  background: rgba(255, 255, 255, 0.72) !important;
+}
+
+.circular-tap-button.ready {
+  background: radial-gradient(circle at 35% 30%, #ffb45b 0%, #f17a21 58%, #cf5f0a 100%) !important;
+}
+
+.circular-tap-button.go {
+  background: radial-gradient(circle at 35% 30%, #7df79d 0%, #36d46a 58%, #179649 100%) !important;
+}
+
+.circular-tap-button.false-start {
+  background: radial-gradient(circle at 35% 30%, #ff9f9f 0%, #e54b4b 58%, #b11919 100%) !important;
+}
